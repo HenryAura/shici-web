@@ -57,10 +57,18 @@ function renderToday() {
   $('wb-count').textContent = String(wbN);
 
   const list = $('wordlist');
+  const oldRow = list.querySelector('li .w') ? list.querySelector('li') : null;
+  const rowH = oldRow ? oldRow.getBoundingClientRect().height : 42;
   list.innerHTML = '';
   const preview = st.dueList.concat(st.freshList);
   $('word-count').textContent = String(preview.length);
-  const more = preview.length > 6;
+
+  /* 先算按钮和估时：操作条的高度随提示行有无而变化，
+     下面要按它的上沿决定词表能摆几行 */
+  refreshStartBtn();
+
+  const cap = wlOpen ? 30 : wordsFit(rowH);
+  const more = preview.length > cap;
   $('wl-chev').hidden = !more;
   $('wl-toggle').classList.toggle('open', wlOpen && more);
 
@@ -70,7 +78,6 @@ function renderToday() {
     li.textContent = '今天没有待学的词';
     list.appendChild(li);
   } else {
-    const cap = wlOpen ? 30 : 6;
     preview.slice(0, cap).forEach((w) => {
       const li = document.createElement('li');
       const a = document.createElement('span');
@@ -93,6 +100,23 @@ function renderToday() {
 
   refreshStartBtn();
   renderModeSeg();
+}
+
+/** 折叠时按屏幕剩余高度定行数：词表正好顶到操作条上沿，
+   多出来的高度都给词，不在底部留一条白，也不把整行切在按钮下面 */
+function wordsFit(rowH) {
+  const page = $('page-today');
+  const group = $('wl-group');
+  const head = $('wl-toggle');
+  const bar = document.querySelector('#page-today .cta-wrap');
+  if (!page || !group || !head || !bar) return 6;
+  const pr = page.getBoundingClientRect();
+  if (pr.height < 300) return 6;                 /* 页面还没显示出来，按默认来 */
+  const top = group.getBoundingClientRect().top - pr.top + page.scrollTop;
+  const barTop = bar.getBoundingClientRect().top - pr.top + page.scrollTop;
+  const headH = head.getBoundingClientRect().height || 50;
+  const rows = Math.floor((barTop - top - 10 - headH) / (rowH || 42));
+  return Math.max(4, Math.min(30, rows));        /* 塞不下就少摆两行，别把整行压在按钮下面 */
 }
 
 /** 开始按钮与下面的估时：以「还剩多少词」为准，学满当天就置灰 */

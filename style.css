@@ -266,8 +266,10 @@ input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
   overscroll-behavior-y: contain;
   animation: none;
 }
-/* 首页底部有常驻主操作区，多留一截给它 */
-#page-today { padding-bottom: calc(var(--tab-h) + var(--tab-pad) + var(--tab-gap) + var(--safe-b) + 92px); }
+/* 首页底部常驻主操作区（提示行 + 按钮）压在上面。
+   留白只留到它上沿：以前 padding 178 + cta-space 110 多留了 120px，
+   滚到底是一片空白，最后一行反而躲在按钮底下 */
+#page-today { padding-bottom: calc(var(--safe-b) + 8px); }
 
 /* 滚动条：iOS 上本来就会淡出，桌面 / 截图里却是常驻的一条灰杠，
    横向切页时正好压在页缝上，看着像接缝。内容照样能滑，只是不画这条杠 */
@@ -437,6 +439,21 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
 }
 .tc-foot #progress-text { flex: 0 0 auto; }
 .tc-foot #st-streak { margin-left: auto; flex: 0 0 auto; }
+
+/* 首页密度：这几处内边距各收 1～4px，合起来能多摆一行词，
+   又不至于挤成一坨。只动首页用到的类，别处版面不受影响 */
+.today-card { padding: 14px var(--pad) 11px; }
+.tc-num { font-size: 52px; }
+.tc-sub { margin-top: 6px; }
+.tc-bar { margin-top: 12px; }
+.tc-foot { margin-top: 9px; }
+.exam-row { padding: 9px 13px; }
+.mode-note { margin-top: 5px; }
+#page-today .today-card,
+#page-today .exam-row,
+#page-today .mode-block { margin-bottom: 10px; }
+/* 词表撑到操作条上沿：多出来的高度都留给词，不在底部留一条白 */
+#page-today .cta-space { height: 160px; }
 
 /* 考试倒计时：两行细条，不抢主视觉 */
 .exam-row {
