@@ -415,11 +415,11 @@ async function boot() {
   maybeHomeTip();
 
   /* 开屏至少留一会儿，别让动画还没展开就消失；数据早就绪也要走完这一下 */
-  const wait = Math.max(0, 820 - (Date.now() - t0));
+  const wait = Math.max(0, 860 - (Date.now() - t0));
   setTimeout(() => {
     const b = $('boot');
     b.classList.add('out');
-    setTimeout(() => { b.hidden = true; }, 380);
+    setTimeout(() => { b.hidden = true; }, 360);
   }, wait);
 }
 
