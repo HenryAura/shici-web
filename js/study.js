@@ -63,6 +63,8 @@ function startSession(kind, mode) {
 /* ================= 渲染分发 ================= */
 function renderQuestion() {
   clearTimeout(advanceTimer);
+  /* 上一题的音念到一半就切题时立刻掐掉，避免旧词读音串到新题里 */
+  if (window.speechSynthesis) speechSynthesis.cancel();
   const s = S.session;
   if (!s) return;
   if (s.idx >= s.items.length) { endSession(); return; }
@@ -174,8 +176,8 @@ function renderFlash(item) {
   $('q-meta').textContent = tagLine(item);
   S.session.revealed = false;
 
-  if (item.tag === 'new' && S.settings.mode === 'flash') {
-    /* 新词默认念一遍，帮助建立音形联系 */
+  if (item.tag === 'new') {
+    /* 新词默认念一遍，帮助建立音形联系（闪卡页会显示单词，不涉及泄题） */
     setTimeout(() => speak(item.w), 120);
   }
 }
@@ -290,7 +292,6 @@ function renderChoice(item) {
   $('study-cta').hidden = true;
 
   S.session.q = { type: 'choice', dir: dir, answer: answerText, answerIdx: answerIdx, opts: opts };
-  if (dir === 'cn2en') setTimeout(() => speak(item.w), 80);
 }
 
 function answerChoice(i, answerIdx, opts, item) {
@@ -310,6 +311,8 @@ function answerChoice(i, answerIdx, opts, item) {
   const g = correct ? 'full' : 'wrong';
   commitResult(item, g, 'choice', correct ? null : $('qc-word').textContent);
   showNextButton();
+  /* 答完再念：让音形对上一次，但绝不提前报答案 */
+  speak(item.w);
 }
 
 /* ================= 拼写 / 听写 ================= */
