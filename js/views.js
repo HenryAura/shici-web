@@ -67,18 +67,19 @@ function renderToday() {
      下面要按它的上沿决定词表能摆几行 */
   refreshStartBtn();
 
-  const cap = wlOpen ? 30 : wordsFit(rowH);
-  const more = preview.length > cap;
-  $('wl-chev').hidden = !more;
-  $('wl-toggle').classList.toggle('open', wlOpen && more);
-
-  if (!preview.length) {
-    const li = document.createElement('li');
-    li.className = 'empty';
-    li.textContent = '今天没有待学的词';
-    list.appendChild(li);
-  } else {
-    preview.slice(0, cap).forEach((w) => {
+  const paint = (capRows) => {
+    const moreNow = preview.length > capRows;
+    $('wl-chev').hidden = !moreNow;
+    $('wl-toggle').classList.toggle('open', wlOpen && !moreNow);
+    list.innerHTML = '';
+    if (!preview.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = '今天没有待学的词';
+      list.appendChild(li);
+      return moreNow;
+    }
+    preview.slice(0, capRows).forEach((w) => {
       const li = document.createElement('li');
       const a = document.createElement('span');
       a.className = 'w';
@@ -95,13 +96,51 @@ function renderToday() {
       }
       list.appendChild(li);
     });
-    if (wlOpen && preview.length > cap) {
+    if (wlOpen && preview.length > capRows) {
       const li = document.createElement('li');
       li.className = 'empty';
-      li.textContent = '还有 ' + (preview.length - cap) + ' 个 · 练习时会依次出现';
+      li.textContent = '还有 ' + (preview.length - capRows) + ' 个 · 练习时会依次出现';
       list.appendChild(li);
     }
-  }
+    return moreNow;
+  };
+
+  let cap = wlOpen ? 30 : wordsFit(rowH);
+  let more = paint(cap);
+
+  /* 词少的时候把行高撑起来填满一屏（只在所有词都摆得下时生效）：
+     平板上 20 个词按手机的 39px 行高只有半屏，下面黑一大块 */
+  const page = $('page-today');
+  const stretchRows = () => {
+    page.style.removeProperty('--wl-row-h');     /* 先还原，量到的才是自然行高 */
+    const rowsNow = list.querySelectorAll('li:not(.empty)').length;
+    if (!preview.length || !rowsNow || more) return;
+    const group = $('wl-group');
+    const head = $('wl-toggle');
+    const bar = document.querySelector('#page-today .cta-wrap');
+    if (!group || !head || !bar) return;
+    const pr = page.getBoundingClientRect();
+    if (pr.height < 300) return;
+    const top = group.getBoundingClientRect().top - pr.top + page.scrollTop;
+    const barTop = getComputedStyle(bar).position === 'fixed'
+      ? bar.getBoundingClientRect().top - pr.top + page.scrollTop
+      : page.clientHeight - (parseFloat(getComputedStyle(page).paddingBottom) || 0) - 4;
+    const avail = barTop - top - 10 - (head.getBoundingClientRect().height || 50);
+    const natH = list.querySelector('li:not(.empty)').getBoundingClientRect().height;
+    const rh = Math.floor(avail / rowsNow) - 1;
+    if (rh > natH + 1) page.style.setProperty('--wl-row-h', Math.min(58, rh) + 'px');
+  };
+
+  /* 首帧动画 / 字体没就绪时 wordsFit 会量偏（实测能差出 7 行）：
+     布局稳定后用真实行高校准一遍行数，再撑行高 */
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (curPage !== 'today') return;
+    const natRow = list.querySelector('li:not(.empty)');
+    const natH = natRow ? natRow.getBoundingClientRect().height : rowH;
+    const cap2 = wlOpen ? 30 : wordsFit(natH);
+    if (cap2 !== cap) { cap = cap2; more = paint(cap); }
+    stretchRows();
+  }));
 
   refreshStartBtn();
   renderModeSeg();

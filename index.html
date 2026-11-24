@@ -12,7 +12,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=20261124s">
+<link rel="stylesheet" href="style.css?v=20261124t">
 </head>
 <body>
 
@@ -53,6 +53,10 @@
       </div>
     </header>
 
+    <!-- 平板上：左边一栏控制面板，右边一栏词表。手机上这个 wrapper 不参与布局 -->
+    <div class="today-cols">
+      <div class="today-left">
+
     <div class="today-card">
       <div class="tc-top">
         <div class="tc-lead">
@@ -76,7 +80,6 @@
         <span id="st-streak">连续 0 天</span>
       </div>
     </div>
-
     <button class="exam-row" id="exam-card" hidden>
       <span class="exam-flag"></span>
       <span class="exam-body">
@@ -100,19 +103,21 @@
       <p class="mode-note" id="mode-note">看词回忆，翻面自评</p>
     </div>
 
-    <div class="group list-group" id="wl-group">
+    <div class="cta-wrap">
+      <p class="cta-note" id="cta-note"></p>
+      <button class="btn-primary" id="btn-start">开始学习</button>
+    </div>
+      </div><!-- /today-left -->
+      <div class="group list-group" id="wl-group">
       <button class="row between wl-head" id="wl-toggle">
         <span class="row-title">今日词表</span>
         <span class="row-val"><span id="word-count">0</span> 个<span class="chev" id="wl-chev">›</span></span>
       </button>
       <ul class="wordlist" id="wordlist"></ul>
     </div>
+    </div><!-- /today-cols -->
 
     <div class="cta-space"></div>
-    <div class="cta-wrap">
-      <p class="cta-note" id="cta-note"></p>
-      <button class="btn-primary" id="btn-start">开始学习</button>
-    </div>
   </section>
 
   <!-- ================= 词典 ================= -->
@@ -330,7 +335,7 @@
       <p class="group-title">关于</p>
       <button class="row link" id="btn-about">
         <span class="row-title">关于识词</span>
-        <span class="row-val"><span id="app-ver">v3.3.0</span> <span class="chev">›</span></span>
+        <span class="row-val"><span id="app-ver">v3.3.1</span> <span class="chev">›</span></span>
       </button>
       <button class="row link" id="btn-update">
         <span class="row-title">检查更新</span>
@@ -579,10 +584,10 @@
 
 <input type="file" id="file-import" accept=".json,application/json" hidden>
 
-<script src="js/core.js?v=20261124s"></script>
-<script src="js/dict.js?v=20261124s"></script>
-<script src="js/study.js?v=20261124s"></script>
-<script src="js/views.js?v=20261124s"></script>
-<script src="js/boot.js?v=20261124s"></script>
+<script src="js/core.js?v=20261124t"></script>
+<script src="js/dict.js?v=20261124t"></script>
+<script src="js/study.js?v=20261124t"></script>
+<script src="js/views.js?v=20261124t"></script>
+<script src="js/boot.js?v=20261124t"></script>
 </body>
 </html>

@@ -292,34 +292,37 @@ input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
 @media (min-width: 700px) and (min-height: 560px) {
   #page-today {
     --content-max: 920px;
-    display: grid;
-    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
-    /* 第 4 行吃掉剩余高度：左栏「模式选择 → 开始按钮」拉开，
-       按钮钉在左栏底部，和右栏词表的底边对齐 */
-    grid-template-rows: auto auto auto 1fr auto;
-    column-gap: 18px;
-    align-items: start;
     padding-bottom: calc(var(--tab-h) + var(--tab-pad) + var(--safe-b) + 40px);
   }
-  #page-today .page-head { grid-column: 1 / -1; }
-  #page-today .today-card { grid-column: 1; grid-row: 2; }
-  #page-today #exam-card { grid-column: 1; grid-row: 3; }
-  #page-today .mode-block { grid-column: 1; grid-row: 4; align-self: start; }
-  #page-today #wl-group { grid-column: 2; grid-row: 2 / span 4; }
-  /* 操作条回到内容里，钉在左栏底部：平板上它不是「拇指够不到的屏幕底边」，
-     而是一块控制面板的最后一行，固定浮着反而和左边那一栏断了联系 */
+  /* 两栏容器：左栏控制面板 + 右栏词表。
+     注意右栏不能跨左栏的行——跨行的元素会把自身高度均摊到每一行，
+     模式选择会被推到半中间，左栏出现几百px的黑洞 */
+  #page-today .today-cols {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    column-gap: 18px;
+    align-items: start;
+  }
+  #page-today .today-left {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    min-width: 0;
+  }
+  #page-today .today-card { padding: 18px 16px 15px; }
   #page-today .cta-wrap {
     position: static;
     left: auto;
     transform: none;
     width: auto;
     padding: 0;
-    grid-column: 1;
-    grid-row: 5;
-    align-self: end;
+    margin-top: 2px;
   }
   #page-today .cta-note { text-shadow: none; margin-bottom: 6px; }
   #page-today .cta-space { display: none; }
+  /* 词少时行高自动撑大（views.js 算好写到 --wl-row-h），把一屏占满 */
+  #page-today .wordlist li { min-height: var(--wl-row-h, 39px); align-items: center; }
+  #page-today .wordlist li.empty { min-height: 0; }
 
   /* 别的页保持一列，但比手机宽松一点，不至于像没适配 */
   #page-dict, #page-report { --content-max: 680px; }
