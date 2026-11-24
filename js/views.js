@@ -891,17 +891,53 @@ async function ghRequest(token, gist, method, content) {
   return res.json();
 }
 
-async function ghRead(token, gist) {
-  if (!gist) return null;                              /* 还没建过备份 */
-  const j = await ghRequest(token, gist, 'GET');
+async function ghFetchGistData(token, id) {
+  const j = await ghRequest(token, id, 'GET');
   const f = j && j.files && j.files[WD_FILE];
   if (!f) return null;
   let content = f.content;
-  if (f.truncated && f.raw_url) {                      /* 超 1MB 时 SDK 只给摘要 */
+  if (f.truncated && f.raw_url) {                      /* 超 1MB 时 API 只给摘要 */
     const r = await fetch(f.raw_url);
     content = await r.text();
   }
   try { return JSON.parse(content); } catch (e) { throw new Error('云端备份内容异常'); }
+}
+
+async function ghRead(token, gist) {
+  if (!gist) return null;                              /* 还没建过备份 */
+  return ghFetchGistData(token, gist);
+}
+
+/** 用令牌在名下所有 Gist 里找识词备份（最多翻 3 页 300 个）。
+ *  Gist ID 只存在创建它的那台设备本地，换设备时靠令牌自动对齐。
+ *  名下可能出现多个备份（比如每台设备各建了一个空壳），
+ *  返回全部候选并按数据量排序，恢复时全部合并、日常同步挑最大的那份。 */
+async function ghListBackups(token) {
+  const found = [];
+  for (let page = 1; page <= 3; page++) {
+    const res = await fetch(GH_BASE + '?per_page=100&page=' + page, {
+      headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json' }
+    });
+    if (!res.ok) {
+      throw new Error('GitHub HTTP ' + res.status +
+        (res.status === 401 ? '（令牌无效或过期）' :
+         res.status === 403 ? '（可能超出 GitHub 速率限制，稍后再试）' : ''));
+    }
+    const arr = await res.json();
+    if (!Array.isArray(arr) || !arr.length) break;
+    for (const g of arr) {
+      const f = g.files && g.files[WD_FILE];
+      if (f) found.push({ id: g.id, size: f.size || 0, updated: g.updated_at || '' });
+    }
+    if (arr.length < 100) break;
+  }
+  found.sort((a, b) => b.size - a.size || (b.updated > a.updated ? 1 : -1));
+  return found;
+}
+
+async function ghPickBest(token) {
+  const list = await ghListBackups(token);
+  return list.length ? list[0].id : null;
 }
 
 async function ghWrite(token, gist, text) {
@@ -930,7 +966,21 @@ async function syncRead() {
   const b = syncBackend();
   if (b.kind === 'gh') {
     const cfg = ghCfg();
-    return ghRead(cfg.token, cfg.gist);
+    let gist = cfg.gist;
+    if (!gist) {
+      gist = await ghPickBest(cfg.token);
+      if (gist) saveGhCfg(Object.assign({}, cfg, { gist }));
+    }
+    try {
+      return await ghRead(cfg.token, gist);
+    } catch (e) {
+      if (/HTTP 404/.test(e.message)) {                /* 本地存的 Gist 被删了 → 重新发现 */
+        const id = await ghPickBest(cfg.token);
+        if (id && id !== gist) saveGhCfg(Object.assign({}, cfg, { gist: id }));
+        return id ? ghRead(cfg.token, id) : null;
+      }
+      throw e;
+    }
   }
   try {
     const res = await wdRequest(wdCfg(), 'GET', WD_FILE);
@@ -945,7 +995,12 @@ async function syncWrite(text) {
   const b = syncBackend();
   if (b.kind === 'gh') {
     const cfg = ghCfg();
-    const id = await ghWrite(cfg.token, cfg.gist, text);
+    let gist = cfg.gist;
+    if (!gist) {                                       /* 别急着新建：先找名下已有的备份 */
+      gist = await ghPickBest(cfg.token);
+      if (gist) saveGhCfg(Object.assign({}, cfg, { gist }));
+    }
+    const id = await ghWrite(cfg.token, gist, text);
     if (id && id !== cfg.gist) saveGhCfg(Object.assign({}, cfg, { gist: id }));
     return;
   }
@@ -1096,17 +1151,22 @@ async function wdTest(btn) {
   try {
     if (gh.token) {
       const prev = ghCfg() || {};
-      let gist = prev.gist, created = false;
+      let gist = prev.gist, note = '';
       if (gist) {
         try { await ghRequest(gh.token, gist, 'GET'); }
         catch (e) { if (/HTTP 404/.test(e.message)) gist = null; else throw e; }
       }
-      if (!gist) {                            /* 首次连接顺手建好私密备份 */
+      if (!gist) {                            /* 本机没有 Gist ID：先找令牌名下已有的备份，
+                                                 换设备时同一令牌会自动对齐到同一份，而不是各建一个空壳 */
+        gist = await ghPickBest(gh.token);
+        if (gist) note = '，已找到云端备份';
+      }
+      if (!gist) {                            /* 确实没有才创建 */
         const j = await ghRequest(gh.token, '', 'POST', JSON.stringify(buildBackup()));
-        gist = j.id; created = true;
+        gist = j.id; note = '，已创建私密备份';
       }
       saveGhCfg({ token: gh.token, gist: gist });
-      wdSetStatus('GitHub 连接成功' + (created ? '，已创建私密备份' : ''), 'ok');
+      wdSetStatus('GitHub 连接成功' + note, 'ok');
     } else {
       await wdRequest(wd, 'GET', WD_FILE);
       wdSetStatus('WebDAV 连接成功，云端已有备份', 'ok');
@@ -1165,10 +1225,32 @@ async function wdRestore(btn) {
   btn.disabled = true;
   wdSetStatus('正在下载…');
   try {
-    const data = await syncRead();
-    if (!data) throw new Error('云端还没有备份');
-    const r = mergeBackup(data);
-    wdSetStatus('恢复完成 · 进度 ' + r.p + ' · 错词 ' + r.w, 'ok');
+    let total = { p: 0, w: 0 };
+    if (syncBackend().kind === 'gh') {
+      /* GitHub：本机存的 Gist + 令牌名下发现的所有备份，逐个合并。
+         这样即使某台设备建过自己的空壳 Gist（恢复显示 0 的根源），
+         也能把真正有数据的备份找回来；合并后同步会写回最大那份。 */
+      const cfg = ghCfg();
+      const list = await ghListBackups(cfg.token);
+      const ids = list.map((x) => x.id);
+      if (cfg.gist && ids.indexOf(cfg.gist) < 0) ids.unshift(cfg.gist);
+      if (!ids.length) throw new Error('令牌名下没有识词备份，先在手机上同步一次');
+      for (const id of ids) {
+        try {
+          const data = await ghFetchGistData(cfg.token, id);
+          if (!data || data.app !== 'shiy') continue;
+          const r = mergeBackup(data);
+          total.p += r.p; total.w += r.w;
+        } catch (e) { /* 单个损坏不影响其它 */ }
+      }
+      saveGhCfg(Object.assign({}, cfg, { gist: list.length ? list[0].id : cfg.gist }));
+    } else {
+      const data = await syncRead();
+      if (!data) throw new Error('云端还没有备份');
+      const r = mergeBackup(data);
+      total = r;
+    }
+    wdSetStatus('恢复完成 · 进度 ' + total.p + ' · 错词 ' + total.w, 'ok');
     toast('已合并云端备份');
     wdSyncDebounced(2500);          /* 恢复完顺手把合并结果推上去 */
   } catch (e) {
