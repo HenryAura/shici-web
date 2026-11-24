@@ -24,7 +24,10 @@
         <p class="date" id="date-line">—</p>
         <h1>今天</h1>
       </div>
-      <button class="icon-btn" id="btn-theme" aria-label="切换深色">◐</button>
+      <div class="head-acts">
+        <button class="pill-btn" id="btn-import">导入</button>
+        <button class="icon-btn" id="btn-theme" aria-label="切换深色">◐</button>
+      </div>
     </header>
 
     <div class="hero">
@@ -66,6 +69,41 @@
     <div class="cta-space"></div>
     <div class="cta-wrap">
       <button class="btn-primary" id="btn-start">开始学习</button>
+    </div>
+  </section>
+
+  <section id="view-import" class="view" hidden>
+    <header class="topbar import-topbar">
+      <button class="icon-btn" id="btn-import-back" aria-label="返回">‹</button>
+      <div>
+        <p class="date">粘贴 · 审核 · 入库</p>
+        <h1>导入单词</h1>
+      </div>
+    </header>
+
+    <div class="card">
+      <textarea id="import-input" class="import-input" rows="6" spellcheck="false"
+        placeholder="把单词或词组粘进来，一行一个。&#10;&#10;支持带序号、带音标、带中文解释，会自动清理。&#10;例如：1. went /went/ 去&#10;      take off 起飞"></textarea>
+      <div class="import-actions">
+        <button class="btn-ghost" id="btn-parse">解析</button>
+        <button class="btn-ghost subtle" id="btn-clear">清空</button>
+      </div>
+    </div>
+
+    <div id="import-result" hidden>
+      <div class="card">
+        <div class="row-between">
+          <span class="card-title">审核</span>
+          <span class="muted" id="import-summary">—</span>
+        </div>
+        <p class="hint" id="import-hint"></p>
+      </div>
+      <div id="import-groups"></div>
+    </div>
+
+    <div class="cta-space"></div>
+    <div class="cta-wrap" id="import-cta" hidden>
+      <button class="btn-primary" id="btn-commit">加入词库</button>
     </div>
   </section>
 

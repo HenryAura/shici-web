@@ -10,10 +10,13 @@
     order: [],
     progress: {},
     days: {},
+    user: {},
+    pins: [],
     queue: [],
     idx: 0,
     revealed: false,
-    locked: false
+    locked: false,
+    review: []
   };
 
   const $ = (id) => document.getElementById(id);
@@ -26,6 +29,8 @@
         const d = JSON.parse(raw);
         S.progress = d.progress || {};
         S.days = d.days || {};
+        S.user = d.user || {};
+        S.pins = Array.isArray(d.pins) ? d.pins : [];
       }
     } catch (e) {
       console.warn('读取本地进度失败', e);
@@ -37,7 +42,9 @@
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
       try {
-        localStorage.setItem(STORE_KEY, JSON.stringify({ v: 1, progress: S.progress, days: S.days }));
+        localStorage.setItem(STORE_KEY, JSON.stringify({
+          v: 2, progress: S.progress, days: S.days, user: S.user, pins: S.pins
+        }));
       } catch (e) {
         console.warn('保存失败', e);
       }
@@ -92,10 +99,28 @@
   }
 
   /* ================= 今日计划 ================= */
+  /** 新词候选：导入置顶词优先，其次词库顺序 */
+  function freshList(limit) {
+    const out = [];
+    const seen = new Set();
+    for (const w of S.pins) {
+      if (S.progress[w] || seen.has(w) || !S.dict.has(w)) continue;
+      seen.add(w);
+      out.push(w);
+      if (out.length >= limit) return out;
+    }
+    for (const w of S.order) {
+      if (S.progress[w] || seen.has(w)) continue;
+      seen.add(w);
+      out.push(w);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
   function todayStat() {
     const today = dayKey();
     let done = 0;
-    let newLeft = 0;
 
     for (const w of S.order) {
       const p = S.progress[w];
@@ -103,8 +128,7 @@
     }
 
     const studied = Object.keys(S.progress).length;
-    newLeft = Math.max(0, Math.min(NEW_PER_DAY, S.order.length - studied));
-    newLeft = Math.min(newLeft, S.order.filter((w) => !S.progress[w]).length);
+    const newLeft = freshList(NEW_PER_DAY).length;
 
     return { done, newLeft, studied };
   }
@@ -119,11 +143,7 @@
     }
     due.sort((a, b) => a.p.dueAt - b.p.dueAt);
 
-    const fresh = [];
-    for (const w of S.order) {
-      if (!S.progress[w]) fresh.push(w);
-      if (fresh.length >= NEW_PER_DAY) break;
-    }
+    const fresh = freshList(NEW_PER_DAY);
 
     S.queue = due.map((x) => ({ w: x.w, mode: 'review' }))
       .concat(fresh.map((w) => ({ w, mode: 'new' })));
@@ -151,7 +171,7 @@
 
   /* ================= 渲染 ================= */
   function view(name) {
-    ['today', 'study', 'done'].forEach((v) => { $('view-' + v).hidden = v !== name; });
+    ['today', 'study', 'done', 'import'].forEach((v) => { $('view-' + v).hidden = v !== name; });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
     requestAnimationFrame(() => window.scrollTo(0, 0));
@@ -215,12 +235,7 @@
       const p = S.progress[w];
       if (p && p.dueAt && p.dueAt <= now) due.push(w);
     }
-    const fresh = [];
-    for (const w of S.order) {
-      if (!S.progress[w]) fresh.push(w);
-      if (fresh.length >= NEW_PER_DAY) break;
-    }
-    return due.concat(fresh);
+    return due.concat(freshList(NEW_PER_DAY));
   }
 
   function glossOf(w) {
@@ -260,6 +275,12 @@
       li.appendChild(document.createTextNode(cn || ''));
       ul.appendChild(li);
     });
+    if (!ul.children.length) {
+      const li = document.createElement('li');
+      li.className = 'none';
+      li.textContent = '暂无释义，可在导入时补充';
+      ul.appendChild(li);
+    }
 
     const en = e.en && e.en.length ? e.en.slice(0, 2).join(' ') : '';
     $('q-endef').textContent = en;
@@ -289,8 +310,14 @@
 
   function renderMeta(e, item) {
     const p = S.progress[item.w];
-    const lexName = { cet4: '四级', cet6: '六级', kaoyan: '考研' }[e.lex || 'cet4'] || '四级';
-    const parts = [lexName + (e.f === 1 ? ' · 必背' : ' · 认知')];
+    const parts = [];
+    if (e.src === 'import') {
+      parts.push('自建词条');
+    } else if (e.src === 'fam') {
+      parts.push('词族' + (e.from ? ' · 来自 ' + e.from : ''));
+    } else {
+      parts.push('四级' + (e.f === 2 ? ' · 认知' : ' · 必背'));
+    }
     if (p && p.reps > 0) parts.push('第 ' + (p.reps + 1) + ' 次复习');
     else parts.push('首次学习');
     if (p && p.ivl > 0) parts.push('下次 ' + p.ivl + ' 天后');
@@ -354,6 +381,398 @@
     speechSynthesis.speak(u);
   }
 
+  /* ================= 导入：解析 / 审核 / 入库 ================= */
+  const FORMS = new Map(); // 变形（xf）：went -> go
+  const DERIV = new Map(); // 派生（fam）：abandonment -> abandon
+
+  /** 用词库自带的 xf（变形表）与 fam（词族）建反查索引 */
+  function buildFormIndex() {
+    FORMS.clear();
+    DERIV.clear();
+    for (const e of S.dict.values()) {
+      if (e.xf) {
+        for (const k in e.xf) {
+          const v = String(e.xf[k] || '').toLowerCase().trim();
+          if (v && !FORMS.has(v)) FORMS.set(v, e.w);
+        }
+      }
+      if (e.fam) {
+        for (const f of e.fam) {
+          const v = String((f && f[0]) || '').toLowerCase().trim();
+          if (v && !DERIV.has(v) && !FORMS.has(v)) DERIV.set(v, e.w);
+        }
+      }
+    }
+  }
+
+  /** 自建词条并入词典并排到最前 */
+  function mergeUserWords() {
+    const keys = Object.keys(S.user).filter((k) => S.user[k] && !S.dict.has(k));
+    if (keys.length) {
+      keys.forEach((k) => S.dict.set(k, S.user[k]));
+      S.order = keys.concat(S.order);
+    }
+    S.pins = S.pins.filter((w, i) => S.dict.has(w) && S.pins.indexOf(w) === i);
+    buildFormIndex();
+  }
+
+  /** 去掉音标、词性、中文解释、序号 */
+  function cleanToken(raw) {
+    let t = String(raw || '');
+    t = t.replace(/\/([^\/]{0,40})\//g, ' ');
+    t = t.replace(/\[[^\]]{0,40}\]/g, ' ');
+    t = t.replace(/[（(【][^）)】]{0,80}[）)】]/g, ' ');
+    t = t.replace(/[\u3400-\u4dbf\u4e00-\u9fff\u3000-\u303f\uff01-\uff60]+/g, ' ');
+    t = t.replace(/^\s*(?:[-*•·>]+|\d+\s*[.)、,，:：]|\(\d+\))\s*/, '');
+    t = t.replace(/[^A-Za-z'\u2019\-\s]/g, ' ');
+    t = t.replace(/\s+/g, ' ').trim();
+    t = t.replace(/^['\u2019\-.]+|['\u2019\-.]+$/g, '');
+    return t.toLowerCase();
+  }
+
+  const POS_WORDS = new Set(['vt', 'vi', 'adj', 'adv', 'prep', 'pron', 'num', 'aux', 'abbr', 'phr', 'conj', 'interj', 'det']);
+
+  function tokenize(text) {
+    const out = [];
+    const seen = new Set();
+    const push = (w) => {
+      const k = w.toLowerCase().replace(/\s+/g, ' ').trim();
+      if (!k || k.length < 2 || !/[a-z]/.test(k) || seen.has(k)) return;
+      seen.add(k);
+      out.push(k);
+    };
+
+    const chunks = String(text || '').split(/[\n\r;；|,，、\t]+/);
+    for (const raw of chunks) {
+      const c = cleanToken(raw);
+      if (!c) continue;
+      // 去掉夹在词里的词性缩写（v / n / adj 等），保留 a、I 这类真词
+      const parts = c.split(' ').filter((p) => p && p !== 'n' && p !== 'v' && !POS_WORDS.has(p));
+      if (!parts.length) continue;
+      if (parts.length <= 3) push(parts.join(' '));
+      else parts.forEach(push);
+      if (out.length > 400) break;
+    }
+    return out;
+  }
+
+  /** 规则还原：处理词库 xf 没覆盖的规则变形 */
+  function lemmatize(w) {
+    if (/\s/.test(w)) return null;
+    const c = [];
+    const add = (s) => { if (s && s.length > 1 && s !== w && c.indexOf(s) < 0) c.push(s); };
+
+    if (w.endsWith('ies')) add(w.slice(0, -3) + 'y');
+    if (w.endsWith('ves')) { add(w.slice(0, -3) + 'f'); add(w.slice(0, -3) + 'fe'); }
+    if (w.endsWith('es')) add(w.slice(0, -2));
+    if (w.endsWith('s') && !w.endsWith('ss')) add(w.slice(0, -1));
+    if (w.endsWith('ied')) add(w.slice(0, -3) + 'y');
+    if (w.endsWith('ed')) { add(w.slice(0, -2)); add(w.slice(0, -1)); }
+    if (w.endsWith('ing')) { add(w.slice(0, -3)); add(w.slice(0, -3) + 'e'); }
+    if (w.endsWith('est')) { add(w.slice(0, -3)); add(w.slice(0, -1)); }
+    if (w.endsWith('er')) { add(w.slice(0, -2)); add(w.slice(0, -1)); }
+
+    const m = w.match(/^(.+?)([bcdfgklmnprstvz])\2(ed|ing|er|est)$/);
+    if (m) add(m[1] + m[2]);
+
+    return c.find((x) => S.dict.has(x)) || null;
+  }
+
+  function resolveToken(tok) {
+    if (S.dict.has(tok)) return { key: tok, base: tok, kind: 'dict' };
+    const f = FORMS.get(tok) || DERIV.get(tok);
+    if (f && S.dict.has(f)) return { key: tok, base: f, kind: 'form' };
+    const l = lemmatize(tok);
+    if (l) return { key: tok, base: l, kind: 'form' };
+    return { key: tok, base: tok, kind: 'unknown' };
+  }
+
+  /** 只保留同根派生，过滤 goth 这类噪声 */
+  const DERIV_SUFFIX = ['ness', 'ment', 'less', 'ful', 'ish', 'hood', 'ship', 'able', 'ible',
+    'ation', 'ition', 'tion', 'sion', 'ance', 'ence', 'ity', 'ous', 'ive', 'ism', 'ist',
+    'ize', 'ise', 'ary', 'ory', 'ly', 'al', 'en', 'er', 'or', 'y', 'ed', 'ing'];
+
+  function familyOf(base) {
+    const e = S.dict.get(base);
+    if (!e || !e.fam || !e.fam.length) return [];
+    const b = base.toLowerCase();
+    const out = [];
+    for (const f of e.fam) {
+      const w = String((f && f[0]) || '').toLowerCase().trim();
+      if (!w || w === b || !w.startsWith(b)) continue;
+      const tail = w.slice(b.length);
+      if (tail.length < 2 || tail.length > 10) continue;
+      if (!DERIV_SUFFIX.some((s) => tail === s || tail.endsWith(s))) continue;
+      // 纯变形（bigger / going / abandoned）不单独建词条，卡片里的词族已展示
+      if (FORMS.get(w) === base) continue;
+      const info = f[1];
+      out.push({
+        w,
+        pos: Array.isArray(info) ? info[0] : ((info || {}).pos || ''),
+        cn: Array.isArray(info) ? info[1] : ((info || {}).cn || '')
+      });
+      if (out.length >= 4) break;
+    }
+    return out;
+  }
+
+  function buildReview(text) {
+    const items = [];
+    const used = new Set();
+    const put = (it) => {
+      const k = it.w.toLowerCase();
+      if (used.has(k)) return false;
+      used.add(k);
+      items.push(it);
+      return true;
+    };
+
+    for (const t of tokenize(text)) {
+      const r = resolveToken(t);
+      if (r.kind === 'unknown') {
+        put({ kind: 'unknown', w: r.key, checked: true, note: '', from: '', pos: '', cn: '' });
+        continue;
+      }
+      put({
+        kind: r.kind, w: r.base, checked: true,
+        from: r.kind === 'form' ? r.key : '', pos: '', cn: ''
+      });
+      for (const f of familyOf(r.base)) {
+        if (S.dict.has(f.w)) continue;
+        put({ kind: 'fam', w: f.w, checked: true, from: r.base, pos: f.pos, cn: f.cn, note: '' });
+      }
+    }
+    return items;
+  }
+
+  function glossOfItem(it) {
+    if (it.kind === 'fam') return [it.pos, it.cn].filter(Boolean).join(' ');
+    if (it.kind === 'unknown') return it.note || '';
+    return glossOf(it.w);
+  }
+
+  const GROUPS = [
+    { k: 'dict', t: '已在词库', cls: 'ok' },
+    { k: 'form', t: '变形还原', cls: 'acc' },
+    { k: 'fam', t: '词族扩展', cls: 'warn' },
+    { k: 'unknown', t: '未收录', cls: 'bad' }
+  ];
+
+  function renderReview() {
+    const box = $('import-groups');
+    box.innerHTML = '';
+
+    const stat = GROUPS.map((d) => ({ d, items: S.review.filter((i) => i.kind === d.k) }))
+      .filter((x) => x.items.length);
+
+    $('import-summary').textContent = '共 ' + S.review.length + ' 项';
+    $('import-hint').textContent = stat.map((x) => x.d.t + ' ' + x.items.length).join(' · ')
+      + '。过去式、复数、比较级会自动还原成原形，释义以本地词库为准。';
+
+    for (const { d, items } of stat) {
+      const g = document.createElement('div');
+      g.className = 'imp-group';
+
+      const head = document.createElement('div');
+      head.className = 'imp-head';
+      const dot = document.createElement('i');
+      dot.className = 'dot ' + d.cls;
+      const tt = document.createElement('span');
+      tt.className = 't';
+      tt.textContent = d.t;
+      const nn = document.createElement('span');
+      nn.className = 'n';
+      nn.textContent = items.length + ' 个';
+      const all = document.createElement('button');
+      all.className = 'all';
+      all.textContent = items.every((i) => i.checked) ? '全不选' : '全选';
+      all.addEventListener('click', () => {
+        const on = !items.every((i) => i.checked);
+        items.forEach((i) => { i.checked = on; });
+        g.querySelectorAll('.imp-row').forEach((row, idx) => {
+          const cb = row.querySelector('input[type=checkbox]');
+          if (cb) cb.checked = items[idx].checked;
+          row.classList.toggle('off', !items[idx].checked);
+        });
+        all.textContent = on ? '全不选' : '全选';
+        updateCommitState();
+      });
+      head.appendChild(dot);
+      head.appendChild(tt);
+      head.appendChild(nn);
+      head.appendChild(all);
+      g.appendChild(head);
+
+      const list = document.createElement('div');
+      list.className = 'imp-list';
+
+      for (const it of items) {
+        const row = document.createElement('div');
+        row.className = 'imp-row' + (it.checked ? '' : ' off');
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = it.checked;
+        cb.addEventListener('change', () => {
+          it.checked = cb.checked;
+          row.classList.toggle('off', !cb.checked);
+          updateCommitState();
+        });
+
+        const body = document.createElement('div');
+        body.className = 'imp-body';
+
+        const w = document.createElement('div');
+        w.className = 'imp-w';
+        w.textContent = it.w;
+        if (it.from) {
+          const f = document.createElement('span');
+          f.className = 'imp-from';
+          f.textContent = '← ' + it.from;
+          w.appendChild(f);
+        }
+        body.appendChild(w);
+
+        const gl = glossOfItem(it);
+        if (gl) {
+          const gs = document.createElement('div');
+          gs.className = 'imp-g';
+          gs.textContent = gl;
+          body.appendChild(gs);
+        } else if (it.kind === 'unknown') {
+          const note = document.createElement('input');
+          note.className = 'imp-note';
+          note.type = 'text';
+          note.placeholder = '补充释义（选填）';
+          note.value = it.note || '';
+          note.addEventListener('input', () => { it.note = note.value.trim(); });
+          body.appendChild(note);
+        }
+
+        row.appendChild(cb);
+        row.appendChild(body);
+        row.addEventListener('click', (e) => {
+          if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event('change'));
+        });
+
+        list.appendChild(row);
+      }
+
+      g.appendChild(list);
+      box.appendChild(g);
+    }
+  }
+
+  function updateCommitState() {
+    const n = S.review.filter((i) => i.checked).length;
+    const btn = $('btn-commit');
+    btn.textContent = '加入词库（' + n + '）';
+    btn.disabled = n === 0;
+  }
+
+  function parseInput() {
+    const text = $('import-input').value;
+    if (!text.trim()) {
+      toast('先粘贴几个单词');
+      return;
+    }
+    S.review = buildReview(text);
+    if (!S.review.length) {
+      toast('没识别出英文单词');
+      return;
+    }
+    $('import-result').hidden = false;
+    $('import-cta').hidden = false;
+    renderReview();
+    updateCommitState();
+    $('import-result').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  function entryOf(it) {
+    if (it.kind === 'fam') {
+      const m = [];
+      if (it.cn) m.push([it.pos || '', it.cn]);
+      return { w: it.w, ph: '', m, fam: [], en: [], f: 0, lv: 0, src: 'fam', from: it.from || '' };
+    }
+    const m = [];
+    if (it.note) m.push(['', it.note]);
+    return { w: it.w, ph: '', m, fam: [], en: [], f: 0, lv: 0, src: 'import' };
+  }
+
+  function commitImport() {
+    const picks = S.review.filter((i) => i.checked);
+    if (!picks.length) {
+      toast('没有选中任何词');
+      return;
+    }
+
+    let added = 0;
+    let pinned = 0;
+    let skipped = 0;
+    const fresh = [];
+    const newPins = [];
+
+    for (const it of picks) {
+      if (S.user[it.w]) { skipped++; continue; }
+
+      if (S.dict.has(it.w)) {
+        if (S.progress[it.w]) { skipped++; continue; }
+        if (S.pins.indexOf(it.w) < 0 && newPins.indexOf(it.w) < 0) {
+          newPins.push(it.w);
+          pinned++;
+        }
+        continue;
+      }
+
+      const e = entryOf(it);
+      S.user[it.w] = e;
+      S.dict.set(it.w, e);
+      fresh.push(it.w);
+      added++;
+    }
+
+    if (fresh.length) S.order = fresh.concat(S.order);
+    if (newPins.length) S.pins = newPins.concat(S.pins);
+
+    saveStore();
+    resetImport();
+    buildQueue();
+    renderToday();
+
+    const bits = [];
+    if (added) bits.push('新增 ' + added);
+    if (pinned) bits.push('置顶 ' + pinned);
+    if (skipped) bits.push('跳过 ' + skipped);
+    toast(bits.length ? '已入库 · ' + bits.join(' · ') : '没有需要新增的词');
+  }
+
+  function resetImport() {
+    $('import-input').value = '';
+    $('import-result').hidden = true;
+    $('import-cta').hidden = true;
+    $('import-groups').innerHTML = '';
+    S.review = [];
+  }
+
+  let toastTimer = null;
+  function toast(msg) {
+    let el = document.querySelector('.toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.className = 'toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.remove('out');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.add('out');
+      setTimeout(() => el.remove(), 320);
+    }, 1900);
+  }
+
   /* ================= 主题 ================= */
   function initTheme() {
     const saved = localStorage.getItem('shici.theme');
@@ -390,6 +809,8 @@
       return;
     }
 
+    mergeUserWords();
+
     pickVoice();
     if (window.speechSynthesis) speechSynthesis.onvoiceschanged = pickVoice;
 
@@ -416,6 +837,15 @@
   $('btn-quit').addEventListener('click', () => { buildQueue(); renderToday(); });
   $('btn-back').addEventListener('click', () => { buildQueue(); renderToday(); });
   $('btn-theme').addEventListener('click', toggleTheme);
+
+  $('btn-import').addEventListener('click', () => {
+    resetImport();
+    view('import');
+  });
+  $('btn-import-back').addEventListener('click', () => { resetImport(); renderToday(); });
+  $('btn-parse').addEventListener('click', parseInput);
+  $('btn-clear').addEventListener('click', resetImport);
+  $('btn-commit').addEventListener('click', commitImport);
 
   document.querySelectorAll('.grade').forEach((b) => {
     b.addEventListener('click', () => onGrade(b.dataset.grade));

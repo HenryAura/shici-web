@@ -1,4 +1,4 @@
-const CACHE = 'shici-v1';
+const CACHE = 'shici-v2';
 const CORE = [
   './',
   './index.html',
@@ -29,6 +29,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
+  // 词库：缓存优先，体积大且极少变动
   if (url.pathname.endsWith('data/dict.json')) {
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
@@ -40,11 +41,17 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // 其他：先用缓存秒开，后台静默更新，下次生效
   e.respondWith(
-    caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-      const copy = res.clone();
-      caches.open(CACHE).then((c) => c.put(req, copy));
-      return res;
-    }).catch(() => caches.match('./index.html')))
+    caches.match(req).then((hit) => {
+      const net = fetch(req).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => hit || caches.match('./index.html'));
+      return hit || net;
+    })
   );
 });
