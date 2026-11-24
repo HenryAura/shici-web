@@ -1,4 +1,4 @@
-const CACHE = 'shici-v3';
+const CACHE = 'shici-v4';
 const CORE = [
   './',
   './index.html',
@@ -35,8 +35,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
-  // 词库与例句：体积大、极少变动，缓存优先
-  if (url.pathname.endsWith('data/dict.json') || url.pathname.endsWith('data/sents.json')) {
+  // 词库与例句：体积大、几乎不变，缓存优先（离线也能用）
+  if (url.pathname.indexOf('/data/') >= 0) {
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
         const copy = res.clone();
@@ -47,17 +47,14 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 其他：先用缓存秒开，后台静默更新，下次生效
+  // 应用外壳：网络优先，断网回退缓存 —— 避免更新后仍跑旧 HTML 引用已删除的脚本
   e.respondWith(
-    caches.match(req).then((hit) => {
-      const net = fetch(req).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
-        return res;
-      }).catch(() => hit || caches.match('./index.html'));
-      return hit || net;
-    })
+    fetch(req).then((res) => {
+      if (res && res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(req, copy));
+      }
+      return res;
+    }).catch(() => caches.match(req).then((hit) => hit || caches.match('./index.html')))
   );
 });
