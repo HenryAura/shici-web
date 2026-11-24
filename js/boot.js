@@ -534,7 +534,8 @@ function keepFocusVisible() {
   }
   if (!box || box === document.body) return;
 
-  const cta = $('study-cta');
+  const page = el.closest('.page');
+  const cta = page && page.querySelector('.cta-wrap');
   const bar = cta && cta.offsetHeight ? cta.offsetHeight : 0;   /* 隐藏的页 offsetHeight 是 0 */
   const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
   const boxTop = box.getBoundingClientRect().top;
