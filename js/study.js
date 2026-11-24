@@ -85,6 +85,11 @@ function renderQuestion() {
   $('btn-next').hidden = true;
   $('study-cta').hidden = false;
 
+  /* 闪卡的评分条是贴底整条，别的模式是浮起一颗按钮，
+     两者高度不同，卡片要给底部让出的空间也跟着变 */
+  const pg = $('page-study');
+  if (pg) pg.classList.toggle('grade-mode', s.mode === 'flash');
+
   if (s.mode === 'flash') renderFlash(item);
   else if (s.mode === 'choice') renderChoice(item);
   else if (s.mode === 'write') renderWrite(item);
@@ -374,6 +379,8 @@ function renderWrite(item) {
   const w = item.w;
 
   $('quiz-input').hidden = false;
+  $('quiz-input').classList.add('mode-write');
+  $('quiz-input').classList.remove('mode-center');
   $('qi-ask').textContent = '看英文，写出中文释义';
   const qw = $('qi-word');
   qw.hidden = false;
@@ -397,6 +404,7 @@ function renderWrite(item) {
   input.disabled = false;
   $('qi-verdict').textContent = '';
   $('qi-verdict').className = 'quiz-verdict';
+  $('qi-meta').textContent = tagLine(item);
   $('qi-answer').textContent = '';
   $('qi-answer').hidden = true;
   $('btn-override').hidden = true;
@@ -484,6 +492,8 @@ function renderSpell(item) {
   const hasSpace = /\s/.test(w);
 
   $('quiz-input').hidden = false;
+  $('quiz-input').classList.remove('mode-write');
+  $('quiz-input').classList.add('mode-center');
   $('qi-ask').textContent = isListen ? '听发音，拼出这个单词' : '看释义，拼出这个单词';
   $('qi-gloss').textContent = isListen ? '' : (fullGloss(w) || '（暂无释义）');
 
@@ -498,6 +508,7 @@ function renderSpell(item) {
   input.placeholder = '在这里输入';
   $('qi-verdict').textContent = '';
   $('qi-verdict').className = 'quiz-verdict';
+  $('qi-meta').textContent = tagLine(item);
   $('qi-word').hidden = true;
   $('qi-answer').hidden = true;
   $('btn-override').hidden = true;

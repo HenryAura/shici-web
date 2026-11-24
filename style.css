@@ -717,7 +717,18 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   font-variant-numeric: tabular-nums;
 }
 .cta-note:empty { display: none; }
-body.fullscreen .cta-wrap { bottom: var(--safe-b); }
+body.fullscreen .cta-wrap { bottom: calc(12px + var(--safe-b)); }
+/* 内容万一滚到按钮下面，垫一层同底色渐隐，避免字从按钮边上透出来 */
+body.fullscreen .cta-wrap::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: -12px;
+  height: 88px;
+  background: linear-gradient(to top, var(--bg) 58%, transparent);
+  pointer-events: none;
+  z-index: -1;
+}
 .cta-wrap > button { pointer-events: auto; }
 
 .btn-primary {
@@ -1098,13 +1109,27 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
 }
 
 /* ---------------- 学习 ---------------- */
+/* 学习页是一列：头部 → 题面 → 底部操作区。
+   --act-h 是底部操作区（含底距）占的高度，页面底部留出这么多给它 */
+#page-study {
+  --act-h: 78px;      /* 浮起的按钮：50 高 + 12 底距 + 16 与卡片的间距 */
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(var(--act-h) + var(--safe-b));
+  overflow-x: hidden;
+}
+#page-study.grade-mode { --act-h: 88px; }   /* 贴底的评分条：74 高 + 14 间距 */
 .study-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: calc(8px + var(--safe-t)) var(--pad) 6px;
-  max-width: 560px;
+  gap: 12px;
+  /* 左右不再自己加内边距：.page 已经让出 16px。
+     再套一层会让顶部比卡片窄 16px，看着就是「没对齐」 */
+  width: 100%;
+  max-width: 528px;
   margin: 0 auto;
+  padding: calc(10px + var(--safe-t)) 0 8px;
+  flex: 0 0 auto;
 }
 .study-bar { flex: 1; }
 .counter { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
@@ -1121,7 +1146,16 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
   min-height: calc(100dvh - 210px);
 }
 .page .quiz-card { max-width: 528px; margin-left: auto; margin-right: auto; }
-body.fullscreen .quiz-card { margin-bottom: calc(96px + var(--safe-b)); }
+/* 卡片按内容定高：以前用 100dvh 减常数硬撑，词少的时候会剩一大片空灰，
+   看着像内容没加载完 */
+#page-study .quiz-card {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 0;
+  margin: 8px auto 0;
+}
+/* 闪卡是翻面卡片：高度必须固定，否则揭晓释义时卡片会长高、单词跟着跳 */
+#page-study.grade-mode .quiz-card { flex: 1 0 auto; }
 
 /* 闪卡：单词位置固定，揭晓释义时不跳动；整张卡片可点翻面 */
 #flash {
@@ -1131,11 +1165,12 @@ body.fullscreen .quiz-card { margin-bottom: calc(96px + var(--safe-b)); }
 }
 #flash .answer { cursor: auto; }
 
-/* 默写/拼写：题干固定在偏上位置，答案展开时不跳动 */
+/* 默写/拼写/听写：题干在上，输入框紧跟其后，答案展开时卡片自然长高 */
 #quiz-input {
   justify-content: flex-start;
-  padding-top: clamp(40px, 12vh, 118px);
+  padding-top: clamp(22px, 5vh, 48px);
 }
+.qi-bottom { margin-top: 24px; }
 
 .word-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .word {
@@ -1303,17 +1338,44 @@ body.fullscreen .quiz-card { margin-bottom: calc(96px + var(--safe-b)); }
   font-weight: 500;
   letter-spacing: 0;
 }
+/* 标准释义是「参考答案」，不是第二个输入框：淡底 + 小标签，
+   和下面纯白的输入框区分开 */
 .qi-answer {
-  margin-top: 14px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--bg);
+  margin: 14px 0 0;
+  padding: 10px 13px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--acc) 7%, transparent);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.68;
   color: var(--ink-2);
   text-align: left;
+  animation: qiReveal 0.22s ease both;
+}
+.qi-answer::before {
+  content: '标准释义';
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--ink-3);
+  margin-bottom: 3px;
+}
+@keyframes qiReveal {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: none; }
 }
 .override { display: block; margin: 14px auto 0; }
+
+/* 拼写 / 听写：整块居中，标题也跟着居中 */
+#quiz-input.mode-center .quiz-ask { text-align: center; }
+#quiz-input.mode-center .qi-top { padding-top: 6px; }
+
+/* 默写：题干左对齐，词性跟着词的左边走，不居中 */
+#quiz-input.mode-write .qi-word { margin-top: 12px; }
+#quiz-input.mode-write .quiz-hint.pos {
+  text-align: left;
+  margin-top: 6px;
+  letter-spacing: 0.3px;
+}
 
 /* ---------------- 完成 ---------------- */
 .done-wrap {

@@ -12,7 +12,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=20261124h">
+<link rel="stylesheet" href="style.css?v=20261124i">
 </head>
 <body>
 
@@ -330,7 +330,7 @@
       <p class="group-title">关于</p>
       <button class="row link" id="btn-about">
         <span class="row-title">关于识词</span>
-        <span class="row-val"><span id="app-ver">v3.1.1</span> <span class="chev">›</span></span>
+        <span class="row-val"><span id="app-ver">v3.1.2</span> <span class="chev">›</span></span>
       </button>
       <button class="row link" id="btn-update">
         <span class="row-title">检查更新</span>
@@ -472,22 +472,25 @@
       <div class="meta" id="qc-meta"></div>
     </div>
 
-    <!-- 拼写 / 听写 / 默写 -->
+    <!-- 拼写 / 听写 / 默写：提问占上半，作答贴着底部，中间的空白留给回忆 -->
     <div id="quiz-input" class="quiz-card" hidden>
-      <p class="quiz-ask" id="qi-ask">听发音，拼出单词</p>
-      <div class="qi-word" id="qi-word" hidden>—</div>
-      <button class="play-big" id="qi-play" aria-label="播放">
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-      </button>
-      <p class="quiz-gloss" id="qi-gloss"></p>
-      <p class="quiz-hint" id="qi-hint"></p>
-      <input id="qi-input" class="spell-input" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在这里输入">
-      <p class="quiz-verdict" id="qi-verdict"></p>
-      <p class="qi-answer" id="qi-answer" hidden></p>
-      <button class="text-btn override" id="btn-override" hidden>算我写对了</button>
+      <div class="qi-top">
+        <p class="quiz-ask" id="qi-ask">听发音，拼出单词</p>
+        <div class="qi-word" id="qi-word" hidden>—</div>
+        <button class="play-big" id="qi-play" aria-label="播放">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        </button>
+        <p class="quiz-gloss" id="qi-gloss"></p>
+        <p class="quiz-hint" id="qi-hint"></p>
+      </div>
+      <div class="qi-bottom">
+        <input id="qi-input" class="spell-input" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在这里输入">
+        <p class="quiz-verdict" id="qi-verdict"></p>
+        <p class="qi-answer" id="qi-answer" hidden></p>
+        <button class="text-btn override" id="btn-override" hidden>算我写对了</button>
+      </div>
+      <p class="meta" id="qi-meta"></p>
     </div>
-
-    <div class="cta-space"></div>
     <div class="cta-wrap" id="study-cta">
       <button class="btn-primary" id="btn-submit" hidden>检查</button>
       <button class="btn-primary" id="btn-next" hidden>下一题</button>
@@ -572,10 +575,10 @@
 
 <input type="file" id="file-import" accept=".json,application/json" hidden>
 
-<script src="js/core.js?v=20261124h"></script>
-<script src="js/dict.js?v=20261124h"></script>
-<script src="js/study.js?v=20261124h"></script>
-<script src="js/views.js?v=20261124h"></script>
-<script src="js/boot.js?v=20261124h"></script>
+<script src="js/core.js?v=20261124i"></script>
+<script src="js/dict.js?v=20261124i"></script>
+<script src="js/study.js?v=20261124i"></script>
+<script src="js/views.js?v=20261124i"></script>
+<script src="js/boot.js?v=20261124i"></script>
 </body>
 </html>
