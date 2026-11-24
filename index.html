@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="识词">
 <meta name="theme-color" content="#ffffff">
+<meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="style.css">
@@ -18,15 +19,15 @@
 
 <main id="app" hidden>
 
-  <section id="view-today" class="view">
-    <header class="topbar">
-      <div>
-        <p class="date" id="date-line">—</p>
+  <!-- ================= 今天 ================= -->
+  <section id="page-today" class="page">
+    <header class="page-head">
+      <div class="head-text">
+        <p class="eyebrow" id="today-date">—</p>
         <h1>今天</h1>
       </div>
       <div class="head-acts">
-        <button class="pill-btn" id="btn-import">导入</button>
-        <button class="icon-btn" id="btn-theme" aria-label="切换深色">◐</button>
+        <button class="chip" id="btn-import">导入</button>
       </div>
     </header>
 
@@ -35,35 +36,43 @@
       <p class="hero-sub" id="hero-sub">今天没有待学的词</p>
     </div>
 
-    <div class="stats">
-      <div class="stat">
-        <span class="stat-label">今日已答</span>
-        <span class="stat-num" id="stat-done">0</span>
-      </div>
-      <div class="stat">
-        <span class="stat-label">剩余新词</span>
-        <span class="stat-num" id="stat-new">0</span>
-      </div>
+    <div class="stat-row">
+      <div class="stat"><b id="st-done">0</b><span>今日已答</span></div>
+      <div class="stat"><b id="st-new">0</b><span>待学新词</span></div>
+      <div class="stat"><b id="st-streak">0</b><span>连续天数</span></div>
     </div>
 
-    <div class="card progress-card">
-      <div class="row-between">
-        <span class="card-title">今日进度</span>
-        <span class="muted" id="progress-text">0 / 0</span>
+    <div class="group">
+      <div class="row between">
+        <span class="row-title">今日进度</span>
+        <span class="row-val" id="progress-text">0 / 0</span>
       </div>
       <div class="bar"><i id="progress-fill"></i></div>
-      <div class="row-between streak-row">
-        <span class="muted">连续打卡</span>
-        <span class="streak" id="streak">0 天</span>
-      </div>
+      <div class="heat" id="heat"></div>
     </div>
 
-    <div class="card">
-      <div class="row-between">
-        <span class="card-title">今日词表</span>
-        <span class="muted" id="word-count">0</span>
+    <button class="group link-group" id="btn-wb" hidden>
+      <span class="row-title">错词本</span>
+      <span class="row-val"><b id="wb-count">0</b> 个待消灭 <span class="chev">›</span></span>
+    </button>
+
+    <div class="group">
+      <div class="row between">
+        <span class="row-title">今日词表</span>
+        <span class="row-val" id="word-count">0</span>
       </div>
       <ul class="wordlist" id="wordlist"></ul>
+    </div>
+
+    <div class="mode-block">
+      <p class="group-title">练习方式</p>
+      <div class="seg" id="mode-seg">
+        <button data-mode="flash">闪卡</button>
+        <button data-mode="choice">选择</button>
+        <button data-mode="spell">拼写</button>
+        <button data-mode="listen">听写</button>
+      </div>
+      <p class="mode-note" id="mode-note">看词回忆，翻面自评</p>
     </div>
 
     <div class="cta-space"></div>
@@ -72,16 +81,265 @@
     </div>
   </section>
 
-  <section id="view-import" class="view" hidden>
-    <header class="topbar import-topbar">
-      <button class="icon-btn" id="btn-import-back" aria-label="返回">‹</button>
-      <div>
-        <p class="date">粘贴 · 审核 · 入库</p>
-        <h1>导入单词</h1>
+  <!-- ================= 词典 ================= -->
+  <section id="page-dict" class="page" hidden>
+    <header class="page-head">
+      <div class="head-text">
+        <p class="eyebrow" id="dict-count">ECDICT · 本地词库</p>
+        <h1>词典</h1>
+      </div>
+      <div class="head-acts">
+        <button class="chip" id="btn-random">随便看看</button>
       </div>
     </header>
 
-    <div class="card">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="dict-q" type="search" placeholder="搜索单词或中文释义" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+      <button class="search-clear" id="dict-clear" hidden aria-label="清空">✕</button>
+    </div>
+
+    <div id="dict-suggests" class="suggests" hidden></div>
+
+    <div class="group" id="dict-hist-wrap">
+      <div class="row between">
+        <span class="row-title">最近搜索</span>
+        <button class="text-btn" id="btn-clear-hist">清空</button>
+      </div>
+      <div class="chips" id="dict-hist"></div>
+    </div>
+
+    <div id="dict-results"></div>
+  </section>
+
+  <!-- ================= 词条详情 ================= -->
+  <section id="page-detail" class="page pushed" hidden>
+    <header class="page-head push-head">
+      <button class="icon-btn" id="btn-detail-back" aria-label="返回">‹</button>
+      <div class="head-text">
+        <p class="eyebrow" id="d-lex">—</p>
+        <h1 id="d-word">—</h1>
+      </div>
+      <button class="icon-btn" id="btn-detail-speak" aria-label="发音">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </button>
+    </header>
+
+    <p class="phonetic detail-ph" id="d-ph"></p>
+    <div class="detail-actions">
+      <button class="chip" id="btn-detail-wb">加入错词本</button>
+      <span class="chip-static" id="d-stat"></span>
+    </div>
+
+    <div class="group">
+      <p class="group-title">释义</p>
+      <ul class="senses" id="d-senses"></ul>
+      <p class="en-def" id="d-en"></p>
+    </div>
+
+    <div class="group" id="d-forms-wrap" hidden>
+      <p class="group-title">词形变化</p>
+      <div class="chips" id="d-forms"></div>
+    </div>
+
+    <div class="group" id="d-fam-wrap" hidden>
+      <p class="group-title">词族</p>
+      <p class="hint" id="d-fam-note"></p>
+      <div class="fam-list" id="d-fam"></div>
+    </div>
+
+    <div class="group" id="d-sent-wrap" hidden>
+      <p class="group-title">例句</p>
+      <div class="sent-list" id="d-sent"></div>
+    </div>
+
+    <div class="cta-space tall"></div>
+  </section>
+
+  <!-- ================= 报告 ================= -->
+  <section id="page-report" class="page" hidden>
+    <header class="page-head">
+      <div class="head-text">
+        <p class="eyebrow">数据只留在这台设备</p>
+        <h1>报告</h1>
+      </div>
+    </header>
+
+    <div class="stat-grid">
+      <div class="stat-cell"><b id="rep-asked">0</b><span>累计答题</span></div>
+      <div class="stat-cell"><b id="rep-acc">—</b><span>正确率</span></div>
+      <div class="stat-cell"><b id="rep-mastered">0</b><span>已掌握</span></div>
+      <div class="stat-cell"><b id="rep-wbc">0</b><span>错词本</span></div>
+    </div>
+
+    <div class="group">
+      <div class="row between">
+        <span class="row-title">近 7 天</span>
+        <span class="row-val" id="rep-7sum">—</span>
+      </div>
+      <div class="chart" id="chart7"></div>
+    </div>
+
+    <div class="group">
+      <div class="row between">
+        <span class="row-title">成就</span>
+        <span class="row-val" id="ach-count">0 / 9</span>
+      </div>
+      <div class="ach-grid" id="ach-grid"></div>
+    </div>
+
+    <button class="group link-group" id="rep-wb-entry">
+      <span class="row-title">错词本</span>
+      <span class="row-val"><span id="rep-wb-n">0 个</span> <span class="chev">›</span></span>
+    </button>
+
+    <div class="group">
+      <p class="group-title">最近练习</p>
+      <div id="rep-recent" class="recent-list"></div>
+    </div>
+
+    <div class="cta-space tall"></div>
+  </section>
+
+  <!-- ================= 我的 ================= -->
+  <section id="page-mine" class="page" hidden>
+    <header class="page-head">
+      <div class="head-text">
+        <p class="eyebrow">识词 · 网页版</p>
+        <h1>我的</h1>
+      </div>
+    </header>
+
+    <div class="group profile">
+      <div class="avatar" id="avatar">识</div>
+      <input id="nick" class="nick-input" placeholder="给自己起个称呼" maxlength="12" autocomplete="off">
+    </div>
+
+    <div class="group">
+      <p class="group-title">学习</p>
+      <div class="row between">
+        <span class="row-title">每日新词</span>
+        <div class="row-right">
+          <input type="range" id="set-new" min="5" max="100" step="5" class="range">
+          <b class="num" id="set-new-val">20</b>
+        </div>
+      </div>
+      <div class="row between">
+        <span class="row-title">默认练习</span>
+        <div class="seg small" id="seg-mode">
+          <button data-v="flash">闪卡</button>
+          <button data-v="choice">选择</button>
+          <button data-v="spell">拼写</button>
+          <button data-v="listen">听写</button>
+        </div>
+      </div>
+      <div class="row between">
+        <span class="row-title">新词顺序</span>
+        <div class="seg small" id="seg-order">
+          <button data-v="random">随机</button>
+          <button data-v="seq">顺序</button>
+        </div>
+      </div>
+      <div class="row between">
+        <span class="row-title">新词范围</span>
+        <div class="seg small" id="seg-scope">
+          <button data-v="all">全部</button>
+          <button data-v="core">必背</button>
+          <button data-v="rare">认知</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title">外观</p>
+      <div class="row between">
+        <span class="row-title">主题</span>
+        <div class="seg small" id="seg-theme">
+          <button data-v="auto">跟随系统</button>
+          <button data-v="light">浅色</button>
+          <button data-v="dark">深色</button>
+        </div>
+      </div>
+      <div class="row between">
+        <span class="row-title">单词字号</span>
+        <div class="seg small" id="seg-size">
+          <button data-v="34">标准</button>
+          <button data-v="38">大</button>
+          <button data-v="42">特大</button>
+        </div>
+      </div>
+      <div class="row between">
+        <span class="row-title">减少动效</span>
+        <button class="switch" id="sw-motion" role="switch" aria-checked="false"><i></i></button>
+      </div>
+      <div class="row between">
+        <span class="row-title">学习时屏幕常亮</span>
+        <button class="switch" id="sw-awake" role="switch" aria-checked="false"><i></i></button>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title">发音</p>
+      <div class="row between">
+        <span class="row-title">音色</span>
+        <select id="sel-voice" class="select"></select>
+      </div>
+      <div class="row between">
+        <span class="row-title">语速</span>
+        <div class="row-right">
+          <input type="range" id="set-rate" min="0.5" max="1.3" step="0.05" class="range">
+          <b class="num" id="set-rate-val">0.90</b>
+        </div>
+      </div>
+      <button class="row link" id="btn-test-voice">
+        <span class="row-title">试听</span>
+        <span class="row-val">Hello, let's learn a word <span class="chev">›</span></span>
+      </button>
+    </div>
+
+    <div class="group">
+      <p class="group-title">数据</p>
+      <button class="row link" id="btn-export">
+        <span class="row-title">导出备份</span>
+        <span class="row-val">存为文件 <span class="chev">›</span></span>
+      </button>
+      <button class="row link" id="btn-import-file">
+        <span class="row-title">导入备份</span>
+        <span class="row-val">合并进度 <span class="chev">›</span></span>
+      </button>
+      <button class="row link" id="btn-wd">
+        <span class="row-title">WebDAV 备份</span>
+        <span class="row-val" id="wd-state">未配置 <span class="chev">›</span></span>
+      </button>
+      <button class="row link danger" id="btn-reset">
+        <span class="row-title">清空全部数据</span>
+        <span class="row-val"><span class="chev">›</span></span>
+      </button>
+    </div>
+
+    <div class="group">
+      <p class="group-title">关于</p>
+      <button class="row link" id="btn-about">
+        <span class="row-title">关于识词</span>
+        <span class="row-val">v2.3 <span class="chev">›</span></span>
+      </button>
+      <p class="hint foot-hint">词库 ECDICT（MIT）· 例句 Tatoeba（CC-BY）<br>进度只存在本机，不上传任何服务器。</p>
+    </div>
+
+    <div class="cta-space tall"></div>
+  </section>
+
+  <!-- ================= 导入 ================= -->
+  <section id="page-import" class="page pushed" hidden>
+    <header class="page-head push-head">
+      <button class="icon-btn" id="btn-import-back" aria-label="返回">‹</button>
+      <div class="head-text">
+        <p class="eyebrow">粘贴 · 审核 · 入库</p>
+        <h1>导入</h1>
+      </div>
+    </header>
+
+    <div class="group">
       <textarea id="import-input" class="import-input" rows="6" spellcheck="false"
         placeholder="把单词或词组粘进来，一行一个。&#10;&#10;支持带序号、带音标、带中文解释，会自动清理。&#10;例如：1. went /went/ 去&#10;      take off 起飞"></textarea>
       <div class="import-actions">
@@ -91,10 +349,10 @@
     </div>
 
     <div id="import-result" hidden>
-      <div class="card">
-        <div class="row-between">
-          <span class="card-title">审核</span>
-          <span class="muted" id="import-summary">—</span>
+      <div class="group">
+        <div class="row between">
+          <span class="row-title">审核</span>
+          <span class="row-val" id="import-summary">—</span>
         </div>
         <p class="hint" id="import-hint"></p>
       </div>
@@ -107,23 +365,20 @@
     </div>
   </section>
 
-  <section id="view-study" class="view" hidden>
-    <header class="topbar study-top">
+  <!-- ================= 学习 ================= -->
+  <section id="page-study" class="page pushed" hidden>
+    <header class="study-head">
       <button class="icon-btn" id="btn-quit" aria-label="退出">‹</button>
-      <div class="study-progress">
-        <div class="bar slim"><i id="study-fill"></i></div>
-        <span class="muted" id="study-count">1 / 1</span>
-      </div>
-      <span class="mode-pill" id="mode-pill">新词</span>
+      <div class="study-bar"><div class="bar slim"><i id="study-fill"></i></div></div>
+      <span class="counter" id="study-count">1 / 1</span>
     </header>
 
-    <div class="quiz-card" id="quiz-card">
+    <!-- 闪卡 -->
+    <div id="flash" class="quiz-card">
       <div class="word-head">
         <h2 class="word" id="q-word">—</h2>
-        <button class="speak" id="btn-speak" aria-label="发音">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>
-          </svg>
+        <button class="icon-btn" id="btn-speak" aria-label="发音">
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
         </button>
       </div>
       <p class="phonetic" id="q-phonetic"></p>
@@ -146,19 +401,114 @@
       <button class="grade partial" data-grade="partial"><b>模糊</b><span>缩短间隔</span></button>
       <button class="grade full" data-grade="full"><b>认识</b><span>拉长间隔</span></button>
     </div>
+
+    <!-- 选择题 -->
+    <div id="quiz-choice" class="quiz-card" hidden>
+      <p class="quiz-ask" id="qc-ask">选出正确释义</p>
+      <div class="quiz-word" id="qc-word">—</div>
+      <p class="phonetic" id="qc-ph"></p>
+      <div class="options" id="qc-options"></div>
+      <div class="meta" id="qc-meta"></div>
+    </div>
+
+    <!-- 拼写 / 听写 -->
+    <div id="quiz-input" class="quiz-card" hidden>
+      <p class="quiz-ask" id="qi-ask">听发音，拼出单词</p>
+      <button class="play-big" id="qi-play" aria-label="播放">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </button>
+      <p class="quiz-gloss" id="qi-gloss"></p>
+      <p class="quiz-hint" id="qi-hint"></p>
+      <input id="qi-input" class="spell-input" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在这里输入">
+      <p class="quiz-verdict" id="qi-verdict"></p>
+    </div>
+
+    <div class="cta-space"></div>
+    <div class="cta-wrap" id="study-cta">
+      <button class="btn-primary" id="btn-submit" hidden>检查</button>
+      <button class="btn-primary" id="btn-next" hidden>下一题</button>
+    </div>
   </section>
 
-  <section id="view-done" class="view" hidden>
+  <!-- ================= 完成 ================= -->
+  <section id="page-done" class="page pushed" hidden>
     <div class="done-wrap">
-      <div class="done-check">✓</div>
-      <h2>今天完成了</h2>
-      <p class="muted" id="done-detail">共 0 个词</p>
+      <div class="done-check" id="done-check">✓</div>
+      <h2 id="done-title">这一轮完成了</h2>
+      <p class="muted" id="done-detail"></p>
+      <div class="done-stats" id="done-stats"></div>
+      <div class="group" id="done-wrong-wrap" hidden>
+        <p class="group-title">本轮没记牢</p>
+        <div class="chips" id="done-wrong"></div>
+      </div>
       <button class="btn-primary" id="btn-back">回到今天</button>
     </div>
   </section>
 
+  <!-- ================= WebDAV ================= -->
+  <section id="page-wd" class="page pushed" hidden>
+    <header class="page-head push-head">
+      <button class="icon-btn" id="btn-wd-back" aria-label="返回">‹</button>
+      <div class="head-text">
+        <p class="eyebrow">与鸿蒙端共用同一份备份</p>
+        <h1>WebDAV</h1>
+      </div>
+    </header>
+
+    <div class="group">
+      <label class="field">
+        <span>服务器地址</span>
+        <input id="wd-url" type="url" placeholder="https://dav.jianguoyun.com/dav/" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </label>
+      <label class="field">
+        <span>账号</span>
+        <input id="wd-user" type="text" autocomplete="username" autocapitalize="off" spellcheck="false">
+      </label>
+      <label class="field">
+        <span>应用密码</span>
+        <input id="wd-pass" type="password" autocomplete="current-password">
+      </label>
+      <p class="hint">账号与应用密码只保存在本机。坚果云在「账户信息 → 安全选项 → 添加应用」生成应用密码，不要用登录密码。</p>
+    </div>
+
+    <div class="group">
+      <button class="row link" id="wd-test"><span class="row-title">测试连接</span><span class="row-val"><span class="chev">›</span></span></button>
+      <button class="row link" id="wd-backup"><span class="row-title">上传备份</span><span class="row-val">覆盖云端 <span class="chev">›</span></span></button>
+      <button class="row link" id="wd-restore"><span class="row-title">从云端恢复</span><span class="row-val">合并进度 <span class="chev">›</span></span></button>
+      <p class="hint" id="wd-status">未连接</p>
+    </div>
+
+    <div class="cta-space"></div>
+    <div class="cta-wrap"><button class="btn-primary" id="wd-save">保存配置</button></div>
+  </section>
+
 </main>
 
-<script src="app.js"></script>
+<nav id="tabbar" hidden>
+  <button class="tab on" data-page="today">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
+    <span>今天</span>
+  </button>
+  <button class="tab" data-page="dict">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M20 18v3H6.5A2.5 2.5 0 0 1 4 18.5"/></svg>
+    <span>词典</span>
+  </button>
+  <button class="tab" data-page="report">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+    <span>报告</span>
+  </button>
+  <button class="tab" data-page="mine">
+    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
+    <span>我的</span>
+  </button>
+</nav>
+
+<input type="file" id="file-import" accept=".json,application/json" hidden>
+
+<script src="js/core.js"></script>
+<script src="js/dict.js"></script>
+<script src="js/study.js"></script>
+<script src="js/views.js"></script>
+<script src="js/boot.js"></script>
 </body>
 </html>

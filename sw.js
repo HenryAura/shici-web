@@ -1,10 +1,16 @@
-const CACHE = 'shici-v2';
+const CACHE = 'shici-v3';
 const CORE = [
   './',
   './index.html',
   './style.css',
-  './app.js',
+  './js/core.js',
+  './js/dict.js',
+  './js/study.js',
+  './js/views.js',
+  './js/boot.js',
   './manifest.webmanifest',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   './icons/icon-1024.png'
 ];
 
@@ -29,8 +35,8 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
-  // 词库：缓存优先，体积大且极少变动
-  if (url.pathname.endsWith('data/dict.json')) {
+  // 词库与例句：体积大、极少变动，缓存优先
+  if (url.pathname.endsWith('data/dict.json') || url.pathname.endsWith('data/sents.json')) {
     e.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
         const copy = res.clone();
