@@ -42,6 +42,7 @@ function showPage(name) {
   }
 
   curPage = name;
+  syncPagePad();          /* 刚显示出来的页才有宽度，量完再渲染 */
 
   if (name === 'today') renderToday();
   else if (name === 'dict') renderDict();
@@ -120,27 +121,6 @@ function bindPagerSwipe() {
 }
 
 /* ---------------- 顶栏玻璃：滚起来才浮出 ---------------- */
-function bindStickyHeads() {
-  ALL_PAGES.forEach((p) => {
-    const el = $('page-' + p);
-    if (!el) return;
-    const head = el.querySelector('.page-head');
-    if (!head) return;
-    el.addEventListener('scroll', () => {
-      head.classList.toggle('stuck', el.scrollTop > 3);
-    }, { passive: true });
-  });
-
-  /* 练习页的顶栏也要吸顶：键盘或长答案把页面撑高后，滚动时进度条不跟着走 */
-  const sp = $('page-study');
-  const sh = sp && sp.querySelector('.study-head');
-  if (sh) {
-    sp.addEventListener('scroll', () => {
-      sh.classList.toggle('stuck', sp.scrollTop > 3);
-    }, { passive: true });
-  }
-}
-
 function goTab(page) {
   if (curPage === 'study') {
     if (!confirm('正在练习中，退出后本轮进度会保留已答部分。确定退出？')) return;
@@ -211,6 +191,38 @@ function initSegThumbs() {
     document.fonts.ready.then(() => syncAllSegs(false)).catch(() => {});
   }
   syncAllSegs(false);
+}
+
+/* ================= 内容宽度 ================= */
+/* 按「这一页实际有多宽」算左右内边距，不用 100vw。
+   iPad 分屏 / 网页 App / Stage Manager 里 100vw 有时报的是整屏宽：
+   页面 606 宽、100vw 却是 1024，(1024-560)/2 = 232 的左右边距
+   直接把内容挤成 142，中文只能一个字一行竖着排 */
+function syncPagePad() {
+  $$('.page').forEach((pg) => {
+    const w = pg.clientWidth;
+    if (!w) return;                       /* 隐藏中的页，等它显示出来再算 */
+    const raw = getComputedStyle(pg).getPropertyValue('--content-max');
+    const max = parseFloat(raw) || 560;
+    const pad = Math.round(Math.max(16, (w - max) / 2));
+    if (pg.__pad === pad) return;
+    pg.__pad = pad;
+    pg.style.setProperty('--pad-l', pad + 'px');
+  });
+}
+
+function bindPagePad() {
+  let raf = 0;
+  const again = () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(syncPagePad);
+  };
+  addEventListener('resize', again, { passive: true });
+  addEventListener('orientationchange', () => setTimeout(syncPagePad, 220));
+  /* iPad 分屏拖动、Safari 地址栏收放都只改 visual viewport */
+  if (window.visualViewport) {
+    visualViewport.addEventListener('resize', again, { passive: true });
+  }
 }
 
 /* ================= 绑定 ================= */
@@ -647,7 +659,6 @@ async function boot() {
 
   bindTabs();
   bindPagerSwipe();
-  bindStickyHeads();
   bindToday();
   bindStudy();
   bindDict();
@@ -662,6 +673,7 @@ async function boot() {
   $('tabbar').hidden = false;
 
   initSegThumbs();
+  bindPagePad();
   renderAll();
   showPage('today');
 

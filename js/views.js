@@ -118,7 +118,11 @@ function wordsFit(rowH) {
   const pr = page.getBoundingClientRect();
   if (pr.height < 300) return 6;                 /* 页面还没显示出来，按默认来 */
   const top = group.getBoundingClientRect().top - pr.top + page.scrollTop;
-  const barTop = bar.getBoundingClientRect().top - pr.top + page.scrollTop;
+  /* 平板上操作条在内容里（static），不能拿它当「屏幕底部」用，
+     否则词表只排到左栏按钮那一行就停了 */
+  const barTop = getComputedStyle(bar).position === 'fixed'
+    ? bar.getBoundingClientRect().top - pr.top + page.scrollTop
+    : page.clientHeight - (parseFloat(getComputedStyle(page).paddingBottom) || 0) - 4;
   const headH = head.getBoundingClientRect().height || 50;
   const rows = Math.floor((barTop - top - 10 - headH) / (rowH || 42));
   return Math.max(4, Math.min(30, rows));        /* 塞不下就少摆两行，别把整行压在按钮下面 */

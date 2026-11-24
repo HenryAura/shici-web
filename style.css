@@ -237,8 +237,13 @@ input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
 
 /* ---------------- 页面容器 ---------------- */
 .page {
-  /* 宽屏时靠左右内边距把内容收到 560，而不是 max-width + margin auto：
+  /* 宽屏时靠左右内边距把内容收到 --content-max，而不是 max-width + margin auto：
      滑动容器里每页必须是整屏宽的 flex 子项 */
+  --content-max: 560px;
+  /* 兜底值。真正生效的是 boot.js 的 syncPagePad()：
+     它按「这一页实际有多宽」算，不用 100vw ——
+     iPad 分屏 / 网页 App / Stage Manager 下 100vw 有时报整屏宽，
+     比页面本身宽得多，(100vw-560)/2 会大过半屏，内容被压成一列竖排字 */
   --pad-l: max(var(--pad), calc((100vw - 560px) / 2));
   padding: 0 var(--pad-l) calc(var(--tab-h) + var(--tab-pad) + var(--safe-b) + 20px);
   animation: pageIn 0.22s ease;
@@ -278,6 +283,60 @@ input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
    滚到底是一片空白，最后一行反而躲在按钮底下 */
 #page-today { padding-bottom: calc(var(--safe-b) + 8px); }
 
+/* ================= 平板 / 宽屏 =================
+   手机上首页是一条竖列；到平板就是「左边看状态、右边看词表」两栏，
+   否则 1024 宽只摆一条 560 的窄列，两边全是空的 */
+/* ================= 平板 / 宽屏（≥700 且有足够高度）=================
+   700 能盖住 iPad mini 竖屏 744；min-height 560 把手机横屏（~430）挡在外面，
+   它们仍然走单列手机布局。分屏拖窄（<700）也一样回落手机布局。 */
+@media (min-width: 700px) and (min-height: 560px) {
+  #page-today {
+    --content-max: 920px;
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    /* 第 4 行吃掉剩余高度：左栏「模式选择 → 开始按钮」拉开，
+       按钮钉在左栏底部，和右栏词表的底边对齐 */
+    grid-template-rows: auto auto auto 1fr auto;
+    column-gap: 18px;
+    align-items: start;
+    padding-bottom: calc(var(--tab-h) + var(--tab-pad) + var(--safe-b) + 40px);
+  }
+  #page-today .page-head { grid-column: 1 / -1; }
+  #page-today .today-card { grid-column: 1; grid-row: 2; }
+  #page-today #exam-card { grid-column: 1; grid-row: 3; }
+  #page-today .mode-block { grid-column: 1; grid-row: 4; align-self: start; }
+  #page-today #wl-group { grid-column: 2; grid-row: 2 / span 4; }
+  /* 操作条回到内容里，钉在左栏底部：平板上它不是「拇指够不到的屏幕底边」，
+     而是一块控制面板的最后一行，固定浮着反而和左边那一栏断了联系 */
+  #page-today .cta-wrap {
+    position: static;
+    left: auto;
+    transform: none;
+    width: auto;
+    padding: 0;
+    grid-column: 1;
+    grid-row: 5;
+    align-self: end;
+  }
+  #page-today .cta-note { text-shadow: none; margin-bottom: 6px; }
+  #page-today .cta-space { display: none; }
+
+  /* 别的页保持一列，但比手机宽松一点，不至于像没适配 */
+  #page-dict, #page-report { --content-max: 680px; }
+  #page-mine { --content-max: 640px; }
+
+  /* 练习页：卡片在进度条和底部操作条之间垂直居中，而不是顶在最上面晾一大片空。
+     双写类名压过文件后面的 #page-study .quiz-card（margin: 8px auto 0）——
+     它在源码顺序上更靠后，同权重会赢 */
+  #page-study .quiz-card.quiz-card {
+    margin-top: auto;
+    margin-bottom: auto;
+    max-width: 600px;
+    width: 100%;
+  }
+  .study-head.study-head { max-width: 600px; }
+}
+
 /* 滚动条：iOS 上本来就会淡出，桌面 / 截图里却是常驻的一条灰杠，
    横向切页时正好压在页缝上，看着像接缝。内容照样能滑，只是不画这条杠 */
 #pager > .page, .page.pushed { scrollbar-width: none; }
@@ -302,35 +361,16 @@ input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
 body.reduce-motion .page,
 body.reduce-motion * { animation: none !important; transition: none !important; }
 
-/* 顶栏吸顶：滚动后浮出一层玻璃，内容从它下面虚化穿过 */
+/* 顶栏：普通文档流，跟着内容一起滚（不做吸顶玻璃——那层模糊在平板上
+   正好横在标题底下，像一条常驻的灰带） */
 .page-head {
-  position: sticky;
-  top: 0;
-  z-index: 12;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
   margin: 0 calc(var(--pad-l, var(--pad)) * -1);
   padding: calc(14px + var(--safe-t)) var(--pad-l, var(--pad)) 12px;
-  background: transparent;
-  transition: padding 0.2s ease;
 }
-.page-head::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: var(--glass);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-li);
-  opacity: 0;
-  transition: opacity 0.22s ease;
-  pointer-events: none;
-  z-index: -1;
-}
-.page-head.stuck::before { opacity: 1; }
-.page-head.stuck { padding-bottom: 10px; }
 .page-head > * { position: relative; }
 .head-text { min-width: 0; }
 .eyebrow {
@@ -1233,27 +1273,7 @@ body.kb-open #page-study { padding-bottom: calc(var(--act-h) + var(--kb-h)); }
   margin: 0 auto;
   padding: calc(10px + var(--safe-t)) 0 8px;
   flex: 0 0 auto;
-  /* 吸顶：键盘或长答案让页面滚动时，进度和退出键不会跟着滚走 */
-  position: sticky;
-  top: 0;
-  z-index: 12;
 }
-/* 玻璃只在滚起来之后浮出，静止时和背景完全一样，不会多出一条横带 */
-.study-head::before {
-  content: '';
-  position: absolute;
-  inset: 0 calc(var(--pad) * -1);
-  background: var(--glass);
-  -webkit-backdrop-filter: var(--glass-blur);
-  backdrop-filter: var(--glass-blur);
-  box-shadow: var(--glass-li);
-  opacity: 0;
-  transition: opacity 0.22s ease;
-  pointer-events: none;
-  z-index: -1;
-}
-.study-head.stuck::before { opacity: 1; }
-.study-head > * { position: relative; }
 /* 屏幕被键盘吃掉一半：卡片收一收，让题干、输入框、操作条同屏可见，
    否则浏览器为了让输入框露出来会把整页往上顶。
    卡片顺手撑到操作条上沿——中间那块空白留在卡片里（回忆区），
