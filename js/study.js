@@ -663,6 +663,7 @@ function endSession() {
   renderDone(s, newly);
   S.session = null;
   showPage('done');
+  wdSyncDebounced();              /* 练完就推一版到云端，另一台设备随时能拉到 */
 }
 
 function quitSession() {
@@ -673,4 +674,5 @@ function quitSession() {
   S.session = null;
   renderToday();
   showPage('today');
+  wdSyncDebounced();
 }

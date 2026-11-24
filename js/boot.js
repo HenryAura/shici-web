@@ -440,7 +440,9 @@ function bindMine() {
 
   $('btn-wd').addEventListener('click', () => {
     fillWdForm();
-    wdSetStatus('未连接');
+    const cfg = wdCfg();
+    $('sw-wd-auto').setAttribute('aria-checked', cfg && cfg.auto ? 'true' : 'false');
+    wdSetStatus(cfg && cfg.auto ? (lastSyncAt() ? '上次同步 ' + new Date(lastSyncAt()).toLocaleTimeString('zh-CN', { hour12: false }) : '等待同步') : '未连接');
     showPage('wd');
   });
 
@@ -496,13 +498,29 @@ function bindSeg(id, onChange) {
 function bindWd() {
   $('btn-wd-back').addEventListener('click', () => showPage('mine'));
   $('wd-save').addEventListener('click', () => {
-    saveWdCfg(readWdForm());
+    const prev = wdCfg();
+    saveWdCfg(Object.assign({}, prev || {}, readWdForm()));
     toast('配置已保存到本机');
+    if ($('sw-wd-auto').getAttribute('aria-checked') === 'true' && !wdCfg().auto) {
+      saveWdCfg(Object.assign({}, wdCfg(), { auto: true }));   /* 开关开着就别在保存时悄悄关掉 */
+    }
     renderMine();
   });
   $('wd-test').addEventListener('click', (e) => wdTest(e.currentTarget));
   $('wd-backup').addEventListener('click', (e) => wdBackup(e.currentTarget));
   $('wd-restore').addEventListener('click', (e) => wdRestore(e.currentTarget));
+  $('sw-wd-auto').addEventListener('click', () => {
+    const cfg = wdCfg();
+    if (!cfg || !cfg.url) { wdSetStatus('先填服务器地址并保存配置', 'bad'); return; }
+    const on = !cfg.auto;
+    saveWdCfg(Object.assign({}, cfg, { auto: on }));
+    $('sw-wd-auto').setAttribute('aria-checked', on ? 'true' : 'false');
+    renderMine();
+    if (on) {
+      wdSetStatus('正在同步…');
+      wdSyncNow('toggle');
+    }
+  });
 }
 
 function bindImport() {
@@ -679,6 +697,9 @@ async function boot() {
 
   if (Object.keys(S.ach).length === 0) checkAchievements(true);
   maybeHomeTip();
+
+  /* 开机自动同步：等首屏渲染完、开屏动画走起来之后再做，不抢加载 */
+  setTimeout(() => { wdSyncNow('boot'); }, 2600);
 
   /* 开屏至少留一会儿，别让动画还没展开就消失；数据早就绪也要走完这一下 */
   const wait = Math.max(0, 860 - (Date.now() - t0));

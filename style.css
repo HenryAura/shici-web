@@ -613,6 +613,7 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
 .row + .row { margin-top: 10px; }
 .row-between { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .row-title { font-size: 15px; color: var(--ink); }
+.row-title small.row-sub { display: block; font-size: 12px; color: var(--ink-3); margin-top: 2px; font-weight: 400; }
 .row-val { font-size: 13px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 .row-right { display: flex; align-items: center; gap: 10px; }
 .row.link { min-height: 46px; }

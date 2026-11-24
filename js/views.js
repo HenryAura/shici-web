@@ -720,8 +720,7 @@ function renderMine() {
   $('sw-motion').setAttribute('aria-checked', s.reduceMotion ? 'true' : 'false');
   $('sw-awake').setAttribute('aria-checked', s.keepAwake ? 'true' : 'false');
 
-  const cfg = wdCfg();
-  $('wd-state').innerHTML = (cfg && cfg.url ? '已配置' : '未配置') + ' <span class="chev">›</span>';
+  refreshWdState();
 }
 
 function setSeg(id, v) {
@@ -923,6 +922,7 @@ function importBackupFile(file) {
       const data = JSON.parse(String(reader.result));
       const r = mergeBackup(data);
       toast('已合并 · 进度 ' + r.p + ' · 错词 ' + r.w);
+      wdSyncDebounced(2500);
     } catch (e) {
       toast('导入失败：' + e.message);
     }
@@ -995,11 +995,68 @@ async function wdRestore(btn) {
     saveWdCfg(cfg);
     wdSetStatus('恢复完成 · 进度 ' + r.p + ' · 错词 ' + r.w, 'ok');
     toast('已合并云端备份');
+    wdSyncDebounced(2500);          /* 恢复完顺手把合并结果推上去 */
   } catch (e) {
     wdSetStatus('恢复失败：' + e.message, 'bad');
   } finally {
     btn.disabled = false;
   }
+}
+
+/* ================= 自动同步 =================
+   数据模型是「只增不减」：进度取更优、历史按天取大、错词取并集——
+   所以可以放心「拉下来合并 → 推上去」，不需要真正的冲突解决 */
+const SYNC_AT_KEY = 'shici.syncAt';
+let __wdSyncing = false;
+let __wdTimer = 0;
+
+function lastSyncAt() {
+  const v = parseInt(localStorage.getItem(SYNC_AT_KEY) || '0', 10);
+  return v || 0;
+}
+
+async function wdSyncNow(reason) {
+  const cfg = wdCfg();
+  if (!cfg || !cfg.url || !cfg.auto || __wdSyncing) return false;
+  __wdSyncing = true;
+  try {
+    let remote = null;
+    try {
+      const res = await wdRequest(cfg, 'GET', WD_FILE);
+      remote = await res.json();
+    } catch (e) {
+      if (!/HTTP 404/.test(e.message)) throw e;   /* 云端还没有备份，直接上传 */
+    }
+    if (remote && remote.app === 'shiy') mergeBackup(remote);
+    await wdRequest(cfg, 'PUT', WD_FILE, JSON.stringify(buildBackup()));
+    localStorage.setItem(SYNC_AT_KEY, String(Date.now()));
+    if (curPage === 'wd') wdSetStatus('已自动同步 · ' + new Date().toLocaleTimeString('zh-CN', { hour12: false }), 'ok');
+    return true;
+  } catch (e) {
+    /* 静默失败：网络抖一下别打断用户，进了 WD 页再显示原因 */
+    console.warn('[wd-sync]', reason, e);
+    if (curPage === 'wd') wdSetStatus('自动同步失败：' + e.message, 'bad');
+    return false;
+  } finally {
+    __wdSyncing = false;
+  }
+}
+
+function wdSyncDebounced(ms) {
+  clearTimeout(__wdTimer);
+  __wdTimer = setTimeout(() => { wdSyncNow('event'); }, ms || 1500);
+}
+
+function refreshWdState() {
+  const cfg = wdCfg();
+  let txt = '未配置';
+  if (cfg && cfg.url) {
+    const at = lastSyncAt();
+    txt = cfg.auto
+      ? (at ? '已同步 ' + new Date(at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '自动同步已开')
+      : '已配置';
+  }
+  $('wd-state').innerHTML = txt + ' <span class="chev">›</span>';
 }
 
 /* ================= 导入 ================= */
@@ -1228,6 +1285,7 @@ function commitImport() {
   if (pinned) bits.push('置顶 ' + pinned);
   if (skipped) bits.push('跳过 ' + skipped);
   toast(bits.length ? '已入库 · ' + bits.join(' · ') : '没有需要新增的词');
+  if (added || pinned) wdSyncDebounced(2500);
 }
 
 function resetImport() {
