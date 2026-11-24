@@ -12,7 +12,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=20261124d">
+<link rel="stylesheet" href="style.css?v=20261125b">
 </head>
 <body>
 
@@ -360,7 +360,7 @@
       <p class="group-title">关于</p>
       <button class="row link" id="btn-about">
         <span class="row-title">关于识词</span>
-        <span class="row-val"><span id="app-ver">v2.7</span> <span class="chev">›</span></span>
+        <span class="row-val"><span id="app-ver">v2.8</span> <span class="chev">›</span></span>
       </button>
       <button class="row link" id="btn-update">
         <span class="row-title">检查更新</span>
@@ -427,7 +427,8 @@
       <p class="phonetic" id="q-phonetic"></p>
 
       <div class="reveal-hint" id="reveal-hint">
-        <button class="btn-ghost" id="btn-reveal">显示释义</button>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/></svg>
+        <span>轻触卡片看释义，也可以直接评</span>
       </div>
 
       <div class="answer" id="answer" hidden>
@@ -440,9 +441,9 @@
     </div>
 
     <div class="grade-bar" id="grade-bar" hidden>
-      <button class="grade wrong" data-grade="wrong"><b>不认识</b><span>重新开始</span></button>
-      <button class="grade partial" data-grade="partial"><b>模糊</b><span>缩短间隔</span></button>
-      <button class="grade full" data-grade="full"><b>认识</b><span>拉长间隔</span></button>
+      <button class="grade wrong" data-grade="wrong"><b>不认识</b><span>没印象</span></button>
+      <button class="grade partial" data-grade="partial"><b>模糊</b><span>有点印象</span></button>
+      <button class="grade full" data-grade="full"><b>认识</b><span>一眼就懂</span></button>
     </div>
 
     <!-- 选择题 -->
@@ -548,10 +549,10 @@
 
 <input type="file" id="file-import" accept=".json,application/json" hidden>
 
-<script src="js/core.js?v=20261124d"></script>
-<script src="js/dict.js?v=20261124d"></script>
-<script src="js/study.js?v=20261124d"></script>
-<script src="js/views.js?v=20261124d"></script>
-<script src="js/boot.js?v=20261124d"></script>
+<script src="js/core.js?v=20261125b"></script>
+<script src="js/dict.js?v=20261125b"></script>
+<script src="js/study.js?v=20261125b"></script>
+<script src="js/views.js?v=20261125b"></script>
+<script src="js/boot.js?v=20261125b"></script>
 </body>
 </html>

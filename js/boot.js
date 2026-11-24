@@ -87,7 +87,6 @@ function bindToday() {
 }
 
 function bindStudy() {
-  $('btn-reveal').addEventListener('click', revealFlash);
   $('flash').addEventListener('click', (e) => {
     if (e.target.closest('#btn-speak')) return;
     if (S.session && S.session.mode === 'flash' && !S.session.revealed) revealFlash();

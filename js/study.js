@@ -107,6 +107,20 @@ function tagLine(item) {
 }
 
 /* ================= 闪卡 ================= */
+
+/** 英文释义兜底：只取第一条，按词边界收在 110 字符内 */
+function enGloss(list) {
+  if (!list || !list.length) return '';
+  let s = String(list[0] || '').replace(/\s+/g, ' ').trim();
+  if (s.length > 110) {
+    s = s.slice(0, 110);
+    const sp = s.lastIndexOf(' ');
+    if (sp > 60) s = s.slice(0, sp);
+    s += '…';
+  }
+  return s;
+}
+
 function renderFlash(item) {
   const e = entryOf(item.w) || { w: item.w };
   $('flash').hidden = false;
@@ -135,7 +149,8 @@ function renderFlash(item) {
     ul.appendChild(li);
   }
 
-  $('q-endef').textContent = e.en && e.en.length ? e.en.slice(0, 2).join(' ') : '';
+  // 英文释义只作兜底：中文够用时留白，避免把 ECDICT 的长定义整段堆上来
+  $('q-endef').textContent = rows.length <= 1 ? enGloss(e.en) : '';
 
   const fam = $('q-fam');
   fam.innerHTML = '';
@@ -154,7 +169,8 @@ function renderFlash(item) {
 
   $('reveal-hint').hidden = false;
   $('answer').hidden = true;
-  $('grade-bar').hidden = true;
+  // 评分条常驻：看到词就能直接评，不必先翻面
+  $('grade-bar').hidden = false;
   $('q-meta').textContent = tagLine(item);
   S.session.revealed = false;
 
@@ -174,13 +190,28 @@ function revealFlash() {
   speak($('q-word').textContent);
 }
 
+/**
+ * 闪卡评分：不必先翻面，看到词就可以直接评。
+ * 只有「判自己不会、又还没看过释义」时才把答案亮出来停一下，
+ * 保证至少有一次正确的输入，然后再翻到下一张。
+ */
 function gradeFlash(g) {
   const s = S.session;
-  if (!s || !s.revealed || s.answered) return;
+  if (!s || s.answered) return;
   s.answered = true;
   const item = s.items[s.idx];
+  const blind = !s.revealed;
   commitResult(item, g, 'flash', null);
-  nextQuestion();
+
+  if (blind && g !== 'full') {
+    // 判自己「不会」却没看释义：先把正确答案亮出来停一下，再翻下一张
+    s.revealed = true;
+    $('reveal-hint').hidden = true;
+    $('answer').hidden = false;
+    advanceTimer = setTimeout(nextQuestion, 1100);
+  } else {
+    nextQuestion();
+  }
 }
 
 /* ================= 选择题 ================= */
