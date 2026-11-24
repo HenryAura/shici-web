@@ -178,7 +178,7 @@ function buildSearchCache() {
   return SEARCH_CACHE;
 }
 
-/** 英文前缀优先，其次子串；中文按释义包含 */
+/** 英文前缀优先，其次中文释义；中文按「首义命中 > 其他义命中」排序 */
 function searchDict(q, limit) {
   const key = String(q || '').trim().toLowerCase();
   if (!key) return [];
@@ -188,34 +188,41 @@ function searchDict(q, limit) {
   const push = (e, rank) => {
     if (!e || seen.has(e.w)) return;
     seen.add(e.w);
-    out.push({ w: e.w, gloss: shortDef(e.w), lv: e.f, rank });
+    out.push({ w: e.w, gloss: shortDef(e.w), lv: e.f, rank: rank });
   };
 
   // 1) 精确
   push(S.dict.get(key), 0);
-  // 2) 前缀
+  // 2) 英文前缀
   if (/^[a-z]/.test(key)) {
     for (const e of S.dict.values()) {
       if (e.w.toLowerCase().startsWith(key)) push(e, 1);
       if (out.length > cap * 2) break;
     }
   }
-  // 3) 中文 / 英文子串
-  if (out.length < cap) {
+  // 3) 中文释义 / 英文子串
+  if (out.length < cap * 2) {
     const cache = buildSearchCache();
+    const raw = q.trim();
     for (const row of cache) {
       if (out.length >= cap * 2) break;
       if (seen.has(row.w)) continue;
-      if (row.g.indexOf(q.trim()) >= 0) {
+      const idx = row.g.indexOf(raw);
+      if (idx >= 0) {
         seen.add(row.w);
-        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: 2 });
+        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: idx === 0 ? 2 : 3, pos: idx });
       } else if (/^[a-z]/.test(key) && row.w.toLowerCase().indexOf(key) >= 0) {
         seen.add(row.w);
-        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: 3 });
+        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: 5, pos: 999 });
       }
     }
   }
-  out.sort((a, b) => a.rank - b.rank || a.w.length - b.w.length || a.w.localeCompare(b.w));
+  out.sort((a, b) =>
+    a.rank - b.rank
+    || (a.rank >= 2 ? (a.lv || 1) - (b.lv || 1) : 0)
+    || (a.pos || 0) - (b.pos || 0)
+    || a.w.length - b.w.length
+    || a.w.localeCompare(b.w));
   return out.slice(0, cap);
 }
 

@@ -576,25 +576,22 @@ function wdSetStatus(text, cls) {
   el.style.color = cls === 'bad' ? 'var(--bad)' : cls === 'ok' ? 'var(--ok)' : '';
 }
 
-/** 构造与鸿蒙端兼容的备份对象 */
+/** 构造与鸿蒙端兼容的备份对象
+ *  kv 只放成就快照：设置项结构两端不同，写错字段会污染鸿蒙端的设置，
+ *  而鸿蒙恢复时本来就「保留本机设置」，所以设置放 web.settings 里自成一路。
+ */
 function buildBackup() {
-  const settings = Object.assign({}, S.settings, {
-    // 鸿蒙侧字段名对齐，便于互认（多余字段会被忽略）
-    wordSize: S.settings.wordSize,
-    lex: 'cet4',
-    theme: S.settings.theme === 'dark' ? 'night' : 'day'
-  });
   return {
     app: 'shiy',
     v: 1,
     exportedAt: Date.now(),
-    kv: { settings: settings, achSnapshot: S.ach },
+    kv: { achSnapshot: S.ach },
     progress: S.progress,
     wrongbook: S.wb,
     history: S.hist,
     modes: S.modes,
-    // 网页端自有：自建词条与置顶
-    web: { user: S.user, pins: S.pins, nick: S.nick }
+    // 网页端自有：自建词条、置顶、昵称、设置
+    web: { user: S.user, pins: S.pins, nick: S.nick, settings: S.settings }
   };
 }
 
@@ -669,6 +666,12 @@ function mergeBackup(data) {
     const merged = web.pins.concat(S.pins).filter((w, i, a) => S.dict.has(w) && a.indexOf(w) === i);
     S.pins = merged;
   }
+  if (web.settings && typeof web.settings === 'object') {
+    S.settings = Object.assign({}, DEFAULT_SETTINGS, S.settings, web.settings);
+    normalizeSettings();
+    applySettings();
+  }
+  if (web.nick && !S.nick) S.nick = web.nick;
 
   mergeUserWords();
   saveStore();
