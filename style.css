@@ -669,6 +669,7 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   align-items: baseline;
   gap: 12px;
   padding: 9px 0;
+  min-height: var(--wl-row-h, 0px);   /* views.js 量出的撑高值，手机/平板通用 */
   border-top: 0.5px solid var(--sep);
 }
 .wordlist li:first-child { border-top: 0; }

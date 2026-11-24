@@ -108,38 +108,51 @@ function renderToday() {
   let cap = wlOpen ? 30 : wordsFit(rowH);
   let more = paint(cap);
 
-  /* 词少的时候把行高撑起来填满一屏（只在所有词都摆得下时生效）：
-     平板上 20 个词按手机的 39px 行高只有半屏，下面黑一大块 */
+  /* 把行高撑起来填满一屏（实测驱动）：
+     - 最后一行压到操作条下面 → 减行；
+     - 底部有富余 → 把零头均摊进各行（词摆不下时也一样，否则折叠词表底下永远空一条）；
+     展开态底部有「还有 X 个」提示行，不撑 */
   const page = $('page-today');
-  const stretchRows = () => {
+  const fillRows = () => {
     page.style.removeProperty('--wl-row-h');     /* 先还原，量到的才是自然行高 */
-    const rowsNow = list.querySelectorAll('li:not(.empty)').length;
-    if (!preview.length || !rowsNow || more) return;
+    if (!preview.length || wlOpen) return;
     const group = $('wl-group');
-    const head = $('wl-toggle');
-    const bar = document.querySelector('#page-today .cta-wrap');
-    if (!group || !head || !bar) return;
+    const rowsNow = list.querySelectorAll('li:not(.empty)').length;
+    if (!group || !rowsNow) return;
+    const bar2 = document.querySelector('#page-today .cta-wrap');
     const pr = page.getBoundingClientRect();
     if (pr.height < 300) return;
-    const top = group.getBoundingClientRect().top - pr.top + page.scrollTop;
-    const barTop = getComputedStyle(bar).position === 'fixed'
-      ? bar.getBoundingClientRect().top - pr.top + page.scrollTop
-      : page.clientHeight - (parseFloat(getComputedStyle(page).paddingBottom) || 0) - 4;
-    const avail = barTop - top - 10 - (head.getBoundingClientRect().height || 50);
-    const natH = list.querySelector('li:not(.empty)').getBoundingClientRect().height;
-    const rh = Math.floor(avail / rowsNow) - 1;
-    if (rh > natH + 1) page.style.setProperty('--wl-row-h', Math.min(58, rh) + 'px');
+    /* 操作条上沿（留 10px 安全距），统一换算成视口坐标 */
+    const limit = getComputedStyle(bar2).position === 'fixed'
+      ? bar2.getBoundingClientRect().top - 10
+      : pr.bottom - (parseFloat(getComputedStyle(page).paddingBottom) || 0) - 14;
+    let capNow = rowsNow;
+    let over = group.getBoundingClientRect().bottom - limit;
+    let guard = 0;
+    while (over > 2 && capNow > 4 && guard++ < 6) {          /* 别把整行切在按钮下面 */
+      capNow--;
+      paint(capNow);
+      over = group.getBoundingClientRect().bottom - limit;
+    }
+    if (over > 2) return;                                    /* 仍压线就保守收场，别再撑 */
+    const slack = limit - group.getBoundingClientRect().bottom;
+    const natRow = list.querySelector('li:not(.empty)');
+    if (!natRow || slack < 4) return;
+    const natH = natRow.getBoundingClientRect().height;
+    /* 留 6px 保护：floor 摊剩下的零头不能把最后一行顶进提示行 */
+    const rh = natH + Math.max(0, Math.floor((slack - 6) / capNow));
+    if (rh > natH) page.style.setProperty('--wl-row-h', Math.min(58, rh) + 'px');
   };
 
   /* 首帧动画 / 字体没就绪时 wordsFit 会量偏（实测能差出 7 行）：
-     布局稳定后用真实行高校准一遍行数，再撑行高 */
+     布局稳定后用真实行高校准一遍行数，再按实测空隙减行或撑高 */
   requestAnimationFrame(() => requestAnimationFrame(() => {
     if (curPage !== 'today') return;
     const natRow = list.querySelector('li:not(.empty)');
     const natH = natRow ? natRow.getBoundingClientRect().height : rowH;
     const cap2 = wlOpen ? 30 : wordsFit(natH);
     if (cap2 !== cap) { cap = cap2; more = paint(cap); }
-    stretchRows();
+    fillRows();
   }));
 
   refreshStartBtn();
