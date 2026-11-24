@@ -501,6 +501,7 @@ function inScope(w) {
 /** 新词候选：置顶优先，其次按设置顺序 */
 function freshList(limit) {
   const out = [];
+  if (!(limit > 0)) return out;
   const seen = new Set();
   for (const w of S.pins) {
     if (S.progress[w] || seen.has(w) || !S.dict.has(w) || !inScope(w)) continue;

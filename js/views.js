@@ -18,7 +18,7 @@ function todayStat() {
   const h = S.hist[dayKey()];
   const done = h ? h.asked : 0;
   const due = dueWords();
-  const fresh = freshList(effectiveNewPerDay());
+  const fresh = freshList(newQuotaLeft());
   return { done: done, due: due.length, newLeft: fresh.length, total: done + due.length + fresh.length, dueList: due, freshList: fresh };
 }
 
@@ -29,7 +29,9 @@ function renderToday() {
   const left = st.due + st.newLeft;
 
   $('today-date').textContent = dateLine() + ' · ' + greeting();
-  $('hero-num').textContent = String(left);
+  const num = $('hero-num');
+  num.textContent = String(left);
+  num.classList.toggle('done', left === 0 && st.total > 0);
   $('hero-sub').textContent = st.total === 0
     ? '今天没有待学的词，休息一下'
     : left === 0 ? '今天的词都过完了'
@@ -89,17 +91,24 @@ function renderToday() {
     }
   }
 
-  const btn = $('btn-start');
-  btn.disabled = st.total === 0;
-  btn.textContent = st.total === 0 ? '今天已完成'
-    : (st.done > 0 ? '继续练习' : '开始' + MODE_NAME[S.settings.mode]);
+  refreshStartBtn();
+  renderModeSeg();
+}
 
+/** 开始按钮与下面的估时：以「还剩多少词」为准，学满当天就置灰 */
+function refreshStartBtn() {
+  const st = todayStat();
+  const left = st.due + st.newLeft;
+  const btn = $('btn-start');
+  btn.disabled = left === 0;
+  btn.textContent = left === 0 ? '今天的词都过完了'
+    : (st.done > 0 ? '继续练习' : '开始' + MODE_NAME[S.settings.mode]);
   const note = $('cta-note');
   if (note) {
-    note.textContent = left > 0 ? left + ' 个词 · 约 ' + Math.max(1, Math.round(left * 0.25)) + ' 分钟' : '';
+    note.textContent = left > 0
+      ? left + ' 个词 · 约 ' + Math.max(1, Math.round(left * 0.25)) + ' 分钟'
+      : '';
   }
-
-  renderModeSeg();
 }
 
 /** 考试倒计时：压缩成两行细条，只保留天数 / 覆盖率 / 今日安排 */

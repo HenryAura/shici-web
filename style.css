@@ -279,6 +279,7 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   font-variant-numeric: tabular-nums;
   color: var(--acc);
 }
+.tc-num.done { color: var(--ok); }
 .tc-sub { margin-top: 7px; font-size: 13px; color: var(--ink-2); }
 .tc-ring { position: relative; width: 62px; height: 62px; flex: 0 0 auto; }
 .tc-ring svg { display: block; }

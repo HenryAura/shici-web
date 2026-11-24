@@ -199,6 +199,7 @@ function recordAnswer(w, g, mode) {
   const h = histOf(k);
   h.asked++;
   h[g]++;
+  if (isNew) h.newTried = (h.newTried || 0) + 1;   // 今天接触过的新词，答错也算占了一个名额
   if (isNew && g !== 'wrong') h.newLearned++;
   if (mode) {
     const m = modeRec(mode);
@@ -308,6 +309,14 @@ function effectiveNewPerDay() {
   const p = examPlan();
   if (!p || p.days <= 0 || p.suggest <= 0) return base;
   return Math.max(base, Math.min(NEW_MAX, p.suggest));
+}
+
+/** 今天还能学多少个新词：每日额度减去今天已经学过的新词，学满就只做复习 */
+function newQuotaLeft() {
+  const h = S.hist[dayKey()] || {};
+  // newTried 是「今天接触过的新词数」，老数据没有这个字段就退回到 newLearned
+  const used = h.newTried != null ? h.newTried : (h.newLearned || 0);
+  return Math.max(0, effectiveNewPerDay() - used);
 }
 
 /* ================= 设置应用 ================= */

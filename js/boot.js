@@ -55,10 +55,7 @@ function bindToday() {
       S.settings.mode = b.dataset.mode;
       saveStore();
       renderModeSeg();
-      const st = todayStat();
-      const btn = $('btn-start');
-      btn.disabled = st.total === 0;
-      btn.textContent = st.total === 0 ? '今天已完成' : (st.done > 0 ? '继续练习' : '开始' + MODE_NAME[S.settings.mode]);
+      refreshStartBtn();
     });
   });
 
