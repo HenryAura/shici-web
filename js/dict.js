@@ -37,7 +37,8 @@ const FUNC_WORDS = {
 async function loadData() {
   const [dictRes, sentRes] = await Promise.all([
     fetch('data/dict.json'),
-    fetch('data/sents.json').catch(() => null)
+    fetch('data/sents.json').catch(() => null),
+    loadFreq()          // 词频表很小（约 80KB），和词库一起拉，首屏就有标注
   ]);
   if (!dictRes.ok) throw new Error('词库 HTTP ' + dictRes.status);
   const data = await dictRes.json();
@@ -229,7 +230,8 @@ function lexLabel(e) {
   if (e.src === 'phrase') return '高频词组';
   if (e.src === 'ext') return '扩展词库';
   if (e.src === 'func') return '功能词';
-  return (e.f === 1 || e.f === undefined ? '必背 · 高频' : '认知 · 中低频');
+  /* 频率交给独立的频段徽章，这里只说来源，免得两处口径打架 */
+  return e.f === 1 || e.f === undefined ? '必背词' : '认知词';
 }
 
 /** 词形变化：xf 里排除与词条本身相同的项，并按展示形式去重 */
@@ -449,6 +451,8 @@ function buildReview(text) {
     const k = it.w.toLowerCase();
     if (used.has(k)) return false;
     used.add(k);
+    /* 频段在导入时就定下来写进词条，之后离线打开也还带着标注 */
+    if (it.fr == null) it.fr = freqOf(it.w);
     items.push(it);
     return true;
   };
@@ -538,6 +542,62 @@ function randomPool() {
   }
   poolCache = { key: k, list: a };
   return a;
+}
+
+/* ================= 词频档位 ================= */
+/**
+ * 三档：1 高频 / 2 常用 / 3 低频。
+ * 数据来自 data/freq.json（字幕 50k + Google 10k 语料排名，大纲与考试标签兜底），
+ * 只存高频与常用两组，查不到的就是低频 —— 所以导入的生词也能立刻有标注。
+ */
+const FREQ_TEXT = ['', '高频', '常用', '低频'];
+const FREQ = { h: new Set(), m: new Set(), ready: false };
+
+async function loadFreq() {
+  try {
+    const r = await fetch('data/freq.json');
+    if (!r.ok) return false;
+    const d = await r.json();
+    String(d.h || '').split(' ').forEach((w) => { if (w) FREQ.h.add(w); });
+    String(d.m || '').split(' ').forEach((w) => { if (w) FREQ.m.add(w); });
+    FREQ.ready = true;
+    return true;
+  } catch (e) {
+    return false;   // 只是标注，拿不到就不标
+  }
+}
+
+/** 词组不判档（搭配的语料频率不可靠，按组成词取最差会误伤） */
+function freqOf(w) {
+  const key = String(w || '').toLowerCase().trim();
+  if (!key || key.indexOf(' ') >= 0) return 0;
+  if (FREQ.h.has(key)) return 1;
+  if (FREQ.m.has(key)) return 2;
+  const e = entryOf(key);
+  if (e && e.fr) return e.fr;
+  if (FREQ.ready) {
+    const base = resolveToken(key).base;
+    if (base !== key) {
+      if (FREQ.h.has(base)) return 1;
+      if (FREQ.m.has(base)) return 2;
+    }
+    return 3;
+  }
+  /* 词频表还没到位（首屏首次渲染）：先按大纲档位顶着，加载完会重绘 */
+  if (e && e.f === 1) return 1;
+  if (e && e.f === 2) return 2;
+  return 0;
+}
+
+/** 频段小徽章；词组与未知词返回 null，界面就不占位 */
+function freqTagEl(w) {
+  const b = freqOf(w);
+  if (!b) return null;
+  const s = document.createElement('span');
+  s.className = 'fq fq' + b;
+  s.textContent = FREQ_TEXT[b];
+  s.title = '词频：' + FREQ_TEXT[b];
+  return s;
 }
 
 /** 单词池（题库）：用于生成干扰项 */

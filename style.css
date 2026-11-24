@@ -641,6 +641,37 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   padding: 10px 0;
 }
 
+/* ---------------- 词频徽章 ---------------- */
+.fq {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.fq1 { background: color-mix(in srgb, var(--acc) 14%, transparent); color: var(--acc); }
+.fq2 { background: color-mix(in srgb, var(--ink-3) 13%, transparent); color: var(--ink-2); }
+.fq3 { color: var(--ink-3); box-shadow: inset 0 0 0 0.5px var(--sep); }
+
+/* 词条详情：跟在「必背词 / 扩展词库」后面 */
+.eyebrow .fq { margin-left: 7px; vertical-align: 1px; }
+
+/* 搜索结果：释义占满剩余宽度，徽章自然靠右 */
+.result-item .fq { align-self: center; }
+
+/* 今日词表：释义吃掉剩余宽度，徽章靠右成列 */
+.wordlist .g { flex: 1 1 auto; min-width: 0; }
+.wordlist .fq { align-self: center; }
+
+/* 导入清单：词后紧跟频段 */
+.imp-w .fq { margin-left: 2px; }
+
 .mode-block { margin-bottom: 12px; }
 .mode-note { font-size: 12px; color: var(--ink-3); margin-top: 7px; text-align: center; }
 

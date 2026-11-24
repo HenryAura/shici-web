@@ -88,6 +88,11 @@ function renderToday() {
       b.textContent = glossOf(w);
       li.appendChild(a);
       li.appendChild(b);
+      const fq = freqTagEl(w);
+      if (fq) {
+        fq.classList.add('wl-fq');
+        li.appendChild(fq);
+      }
       list.appendChild(li);
     });
     if (wlOpen && preview.length > cap) {
@@ -267,13 +272,10 @@ function renderDict() {
     const g = document.createElement('span');
     g.className = 'r-g';
     g.textContent = r.gloss;
-    const lv = document.createElement('span');
-    lv.className = 'r-lv';
-    if (isExtra) {
-      lv.textContent = r.tag || '扩展';
-      lv.classList.add('ext');
-    } else {
-      lv.textContent = r.lv === 2 ? '认知' : '必背';
+    const ft = freqTagEl(r.w);
+    if (ft) {
+      ft.classList.add('r-fq');
+      if (r.tag) ft.title += ' · ' + r.tag;   /* 考试标签留在 title，不占位置 */
     }
     b.appendChild(w);
     if (r.via) {
@@ -283,7 +285,14 @@ function renderDict() {
       b.appendChild(via);
     }
     b.appendChild(g);
-    b.appendChild(lv);
+    if (ft) {
+      b.appendChild(ft);
+    } else if (isExtra) {
+      const lv = document.createElement('span');
+      lv.className = 'r-lv ext';
+      lv.textContent = r.tag || '扩展';
+      b.appendChild(lv);
+    }
     b.addEventListener('click', () => {
       if (isExtra) {
         addFromExtra(r.w, r.tag);
@@ -327,9 +336,10 @@ function addFromExtra(w, tag) {
   const ex = lookupExtra(w);
   if (!ex) { toast('没找到这个词'); return false; }
   if (S.dict.has(w)) { openDetail(w); return false; }
+  const fr = freqOf(w) || 0;
   const e = ex.kind === 'phrase'
-    ? { w: w, ph: '', m: [['', ex.cn]], fam: [], en: [], f: 0, lv: 0, src: 'phrase' }
-    : { w: w, ph: ex.ph || '', m: (ex.m && ex.m.length ? ex.m : [['', ex.cn]]), fam: [], en: [], f: 0, lv: 0, src: 'ext' };
+    ? { w: w, ph: '', m: [['', ex.cn]], fam: [], en: [], f: 0, lv: 0, fr: 0, src: 'phrase' }
+    : { w: w, ph: ex.ph || '', m: (ex.m && ex.m.length ? ex.m : [['', ex.cn]]), fam: [], en: [], f: 0, lv: 0, fr: fr, src: 'ext' };
   S.user[w] = e;
   S.dict.set(w, e);
   S.order = [w].concat(S.order);
@@ -347,7 +357,10 @@ function openDetail(w) {
   detailWord = w;
   pushDictHistory(w);
 
-  $('d-lex').textContent = lexLabel(e);
+  const lex = $('d-lex');
+  lex.textContent = lexLabel(e);
+  const ftag = freqTagEl(w);
+  if (ftag) lex.appendChild(ftag);
   $('d-word').textContent = e.w || w;
   $('d-ph').textContent = e.ph ? '/' + e.ph + '/' : '';
 
@@ -1070,6 +1083,8 @@ function renderReview() {
         f.textContent = '← ' + it.from;
         w.appendChild(f);
       }
+      const fq = freqTagEl(it.w);
+      if (fq) w.appendChild(fq);
       body.appendChild(w);
 
       const gl = glossOfItem(it);
@@ -1141,21 +1156,22 @@ function doParse() {
 }
 
 function makeEntry(it) {
+  const fr = it.fr || freqOf(it.w) || 0;
   if (it.kind === 'fam') {
     const m = [];
     if (it.cn) m.push([it.pos || '', it.cn]);
-    return { w: it.w, ph: '', m: m, fam: [], en: [], f: 0, lv: 0, src: 'fam', from: it.from || '' };
+    return { w: it.w, ph: '', m: m, fam: [], en: [], f: 0, lv: 0, fr: fr, src: 'fam', from: it.from || '' };
   }
   if (it.kind === 'phrase') {
-    return { w: it.w, ph: '', m: [['', it.cn || '']], fam: [], en: [], f: 0, lv: 0, src: 'phrase' };
+    return { w: it.w, ph: '', m: [['', it.cn || '']], fam: [], en: [], f: 0, lv: 0, fr: fr, src: 'phrase' };
   }
   if (it.kind === 'ext') {
     const m = (it.m && it.m.length) ? it.m : (it.cn ? [['', it.cn]] : []);
-    return { w: it.w, ph: it.ph || '', m: m, fam: [], en: [], f: 0, lv: 0, src: 'ext' };
+    return { w: it.w, ph: it.ph || '', m: m, fam: [], en: [], f: 0, lv: 0, fr: fr, src: 'ext' };
   }
   const m = [];
   if (it.note) m.push(['', it.note]);
-  return { w: it.w, ph: '', m: m, fam: [], en: [], f: 0, lv: 0, src: 'import' };
+  return { w: it.w, ph: '', m: m, fam: [], en: [], f: 0, lv: 0, fr: fr, src: 'import' };
 }
 
 function commitImport() {

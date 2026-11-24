@@ -102,6 +102,9 @@ function tagLine(item) {
   else if (item.tag === 'wb') bits.push('错词本');
   else bits.push('复习');
 
+  const fb = FREQ_TEXT[freqOf(item.w)];
+  if (fb) bits.push(fb);
+
   const p = S.progress[item.w];
   if (item.tag === 'wb') {
     const it = S.wb[item.w];
