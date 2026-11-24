@@ -130,6 +130,15 @@ function bindStickyHeads() {
       head.classList.toggle('stuck', el.scrollTop > 3);
     }, { passive: true });
   });
+
+  /* 练习页的顶栏也要吸顶：键盘或长答案把页面撑高后，滚动时进度条不跟着走 */
+  const sp = $('page-study');
+  const sh = sp && sp.querySelector('.study-head');
+  if (sh) {
+    sp.addEventListener('scroll', () => {
+      sh.classList.toggle('stuck', sp.scrollTop > 3);
+    }, { passive: true });
+  }
 }
 
 function goTab(page) {
@@ -462,6 +471,79 @@ function bindKeyboard() {
   });
 }
 
+/* ================= 软键盘 ================= */
+/* 键盘弹起时 layout viewport 不变、visual viewport 变矮，差值就是键盘高度。
+   把它写进 --kb-h，底部操作条和页面留白才能一起让位 */
+function bindSoftKeyboard() {
+  const vv = window.visualViewport;
+  const root = document.documentElement;
+  let last = -1;
+  let timer = 0;
+
+  function measure() {
+    if (!vv) return 0;
+    /* 80px 以内多半是地址栏伸缩，不当键盘处理 */
+    const h = Math.round(window.innerHeight - vv.height - vv.offsetTop);
+    return h > 80 ? h : 0;
+  }
+
+  function sync() {
+    const px = measure();
+    if (px === last) return;
+    const opening = last <= 0 && px > 0;
+    last = px;
+    root.style.setProperty('--kb-h', px + 'px');
+    document.body.classList.toggle('kb-open', px > 0);
+    /* 键盘还在做弹出动画时浏览器会自己滚一次，
+       隔几拍各纠一次，最后停在输入框刚好露出的位置 */
+    if (opening) [80, 200, 360, 540].forEach((d) => setTimeout(keepFocusVisible, d));
+  }
+
+  function queue() {
+    clearTimeout(timer);
+    timer = setTimeout(sync, 50);
+  }
+
+  if (vv) {
+    vv.addEventListener('resize', queue);
+    vv.addEventListener('scroll', queue);
+  }
+  window.addEventListener('resize', queue);
+  window.addEventListener('orientationchange', () => setTimeout(sync, 320));
+  document.addEventListener('focusin', queue);
+  document.addEventListener('focusout', queue);
+  sync();
+}
+
+/* 输入框要停在操作条上面。键盘+底栏占掉的高度从可视高度里扣掉，
+   算出「刚好露出来」需要的滚动量再对齐——多滚的那一下就是整页往上跳的来源 */
+function keepFocusVisible() {
+  const el = document.activeElement;
+  if (!el || (el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA')) return;
+
+  /* iOS 有时会把整个视觉视口往上抬一截（顶栏被推到状态栏下面），
+     文档本身不能滚，直接归位 */
+  const vv = window.visualViewport;
+  if (vv && vv.offsetTop > 4) window.scrollTo(0, 0);
+
+  let box = el.parentElement;
+  while (box && box !== document.body) {
+    const oy = getComputedStyle(box).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && box.scrollHeight > box.clientHeight + 1) break;
+    box = box.parentElement;
+  }
+  if (!box || box === document.body) return;
+
+  const cta = $('study-cta');
+  const bar = cta && cta.offsetHeight ? cta.offsetHeight : 0;   /* 隐藏的页 offsetHeight 是 0 */
+  const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  const boxTop = box.getBoundingClientRect().top;
+  const bottomLimit = vh - bar - 14 - boxTop;
+  const contentY = box.scrollTop + el.getBoundingClientRect().bottom - boxTop;
+  const want = Math.max(0, contentY - bottomLimit);
+  if (Math.abs(want - box.scrollTop) > 1) box.scrollTop = want;
+}
+
 /* ================= 首次使用提示 ================= */
 function maybeHomeTip() {
   const standalone = window.navigator.standalone === true
@@ -508,6 +590,7 @@ async function boot() {
   bindWd();
   bindImport();
   bindKeyboard();
+  bindSoftKeyboard();
 
   $('app').hidden = false;
   $('tabbar').hidden = false;

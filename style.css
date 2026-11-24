@@ -732,6 +732,19 @@ body.fullscreen .cta-wrap {
 body.fullscreen .cta-wrap::before { content: none; }
 .cta-wrap > button { pointer-events: auto; }
 
+/* ---------------- 软键盘让位 ---------------- */
+/* fixed 底栏不认键盘：键盘弹起时它还钉在屏幕底部，正好被压在键盘下面。
+   --kb-h 由 visualViewport 量出来（见 boot.js），操作条按它抬到键盘上沿 */
+body.kb-open .cta-wrap,
+body.kb-open .grade-bar {
+  bottom: var(--kb-h);
+  transition: bottom 0.16s ease;
+}
+/* 底下已经是键盘，不用再让一次底部安全区 */
+body.kb-open .cta-wrap { padding-bottom: 12px; }
+/* 别的推入页（导入、WebDAV）也让出键盘的高度，输入框才滚得到操作条上面 */
+body.kb-open .page.pushed { padding-bottom: calc(28px + var(--kb-h)); }
+
 .btn-primary {
   display: block;
   width: 100%;
@@ -1120,6 +1133,9 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
   overflow-x: hidden;
 }
 #page-study.grade-mode { --act-h: 82px; }   /* 评分条 74 + 8 与卡片之间 */
+/* 键盘占了下半屏：页面底部也留出键盘的高度，内容才滚得到操作条上面 */
+body.kb-open #page-study { padding-bottom: calc(var(--act-h) + var(--kb-h)); }
+
 .study-head {
   display: flex;
   align-items: center;
@@ -1131,7 +1147,37 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
   margin: 0 auto;
   padding: calc(10px + var(--safe-t)) 0 8px;
   flex: 0 0 auto;
+  /* 吸顶：键盘或长答案让页面滚动时，进度和退出键不会跟着滚走 */
+  position: sticky;
+  top: 0;
+  z-index: 12;
 }
+/* 玻璃只在滚起来之后浮出，静止时和背景完全一样，不会多出一条横带 */
+.study-head::before {
+  content: '';
+  position: absolute;
+  inset: 0 calc(var(--pad) * -1);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-li);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.study-head.stuck::before { opacity: 1; }
+.study-head > * { position: relative; }
+/* 屏幕被键盘吃掉一半：卡片收一收，让题干、输入框、操作条同屏可见，
+   否则浏览器为了让输入框露出来会把整页往上顶。
+   卡片顺手撑到操作条上沿——中间那块空白留在卡片里（回忆区），
+   比卡片底下露出一大条白底更像一整块答题区 */
+body.kb-open #page-study .quiz-card { flex: 1 1 auto; min-height: 0; margin-bottom: 10px; }
+body.kb-open .study-head { padding-top: calc(6px + var(--safe-t)); padding-bottom: 4px; }
+body.kb-open #quiz-input { padding: 14px 20px 18px; }
+body.kb-open #quiz-input .qi-word { margin-top: 6px; font-size: calc(var(--word-size) - 4px); }
+body.kb-open #quiz-input .qi-bottom { margin-top: 12px; }
+body.kb-open #quiz-input .spell-input.zh { margin-top: 12px; height: 44px; }
 .study-bar { flex: 1; }
 .counter { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
 
@@ -1501,8 +1547,8 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
 
 /* ---------------- 宽屏适配 ---------------- */
 @media (min-width: 700px) {
-  .page { max-width: 640px; }
-  .quiz-card { max-width: 600px; }
+  /* 页面本身不再单独限宽：内容宽度交给 .page 的 --pad-l 收，
+     限了宽 pager 的 100% 位移会按错的宽度翻页，推入页也会贴左不居中 */
   .grade-bar { max-width: 600px; }
   .chart { height: 140px; }
 }
