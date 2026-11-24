@@ -1,4 +1,4 @@
-const CACHE = 'shici-v19';
+const CACHE = 'shici-v20';
 const CORE = [
   './',
   './index.html',
@@ -35,14 +35,20 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
-  // 词库与例句：体积大、几乎不变，缓存优先（离线也能用）
+  // 词库与词频：体积大、几乎不变。有缓存先给缓存（启动快），同时后台更新，
+  // 下次打开就是新数据；没缓存时才等网络
   if (url.pathname.indexOf('/data/') >= 0) {
     e.respondWith(
-      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
-        return res;
-      }))
+      caches.match(req).then((hit) => {
+        const net = fetch(req).then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        }).catch(() => hit);
+        return hit || net;
+      })
     );
     return;
   }

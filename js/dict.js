@@ -555,7 +555,8 @@ const FREQ = { h: new Set(), m: new Set(), ready: false };
 
 async function loadFreq() {
   try {
-    const r = await fetch('data/freq.json');
+    /* 带上版本号：发版后 URL 变化，SW 的缓存优先策略不会一直喂旧词频 */
+    const r = await fetch('data/freq.json?v=' + encodeURIComponent(typeof APP_VER === 'string' ? APP_VER : '1'));
     if (!r.ok) return false;
     const d = await r.json();
     String(d.h || '').split(' ').forEach((w) => { if (w) FREQ.h.add(w); });
