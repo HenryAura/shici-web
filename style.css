@@ -717,18 +717,19 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   font-variant-numeric: tabular-nums;
 }
 .cta-note:empty { display: none; }
-body.fullscreen .cta-wrap { bottom: calc(12px + var(--safe-b)); }
-/* 内容万一滚到按钮下面，垫一层同底色渐隐，避免字从按钮边上透出来 */
-body.fullscreen .cta-wrap::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0;
-  bottom: -12px;
-  height: 88px;
-  background: linear-gradient(to top, var(--bg) 58%, transparent);
-  pointer-events: none;
-  z-index: -1;
+/* 全屏页没有底栏，用一条贴底的实心操作条收住版面：
+   上面是内容、下面是动作，中间留白才有边界 */
+body.fullscreen .cta-wrap {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  transform: none;
+  width: auto;
+  padding: 10px var(--pad) calc(12px + var(--safe-b));
+  background: var(--bg);
+  border-top: 0.5px solid var(--sep);
 }
+body.fullscreen .cta-wrap::before { content: none; }
 .cta-wrap > button { pointer-events: auto; }
 
 .btn-primary {
@@ -1112,13 +1113,13 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
 /* 学习页是一列：头部 → 题面 → 底部操作区。
    --act-h 是底部操作区（含底距）占的高度，页面底部留出这么多给它 */
 #page-study {
-  --act-h: 78px;      /* 浮起的按钮：50 高 + 12 底距 + 16 与卡片的间距 */
+  --act-h: 72px;      /* 底部操作条：按钮 50 + 上下内边距 */
   display: flex;
   flex-direction: column;
   padding-bottom: calc(var(--act-h) + var(--safe-b));
   overflow-x: hidden;
 }
-#page-study.grade-mode { --act-h: 88px; }   /* 贴底的评分条：74 高 + 14 间距 */
+#page-study.grade-mode { --act-h: 82px; }   /* 评分条 74 + 8 与卡片之间 */
 .study-head {
   display: flex;
   align-items: center;
