@@ -3,31 +3,133 @@
    ============================================================ */
 
 const TABS = ['today', 'dict', 'report', 'mine'];
-const ALL_PAGES = ['today', 'dict', 'report', 'mine', 'detail', 'import', 'study', 'done', 'wd'];
+const PUSHED = ['detail', 'import', 'study', 'done', 'wd'];
+const ALL_PAGES = TABS.concat(PUSHED);
 let curPage = 'today';
+let tabIdx = 0;
+
+/** 把 pager 挪到第 i 页；animate=false 用于手指跟随（此时关掉过渡） */
+function setTabIndex(i, animate) {
+  tabIdx = Math.max(0, Math.min(TABS.length - 1, i));
+  const pager = $('pager');
+  if (!pager) return;
+  pager.classList.toggle('dragging', !animate);
+  pager.style.transform = 'translateX(' + (-tabIdx * 100) + '%)';
+  const glow = document.querySelector('.tab-glow');
+  if (glow) glow.style.transform = 'translateX(' + tabIdx * 100 + '%)';
+}
 
 function showPage(name) {
-  ALL_PAGES.forEach((p) => {
-    const el = $('page-' + p);
-    if (el) el.hidden = p !== name;
-  });
   const isTab = TABS.indexOf(name) >= 0;
-  $('tabbar').hidden = !isTab;
-  document.body.classList.toggle('fullscreen', !isTab);
-  curPage = name;
 
   if (isTab) {
+    /* 四个 tab 页始终留在 pager 里可见，靠位移切页；
+       这样内容才能滑着从底栏下方穿过，玻璃才有东西可模糊 */
+    PUSHED.forEach((p) => { const el = $('page-' + p); if (el) el.hidden = true; });
+    TABS.forEach((p) => { const el = $('page-' + p); if (el) el.hidden = false; });
+    $('tabbar').hidden = false;
+    document.body.classList.remove('fullscreen');
+    setTabIndex(TABS.indexOf(name), true);
     S.lastPage = name;
     $$('#tabbar .tab').forEach((b) => b.classList.toggle('on', b.dataset.page === name));
+  } else {
+    PUSHED.forEach((p) => { const el = $('page-' + p); if (el) el.hidden = p !== name; });
+    $('tabbar').hidden = true;
+    document.body.classList.add('fullscreen');
+    /* 推入页各自滚动，进入时回到顶部；tab 页的滚动位置保留，切回来还在原处 */
+    const el = $('page-' + name);
+    if (el) el.scrollTop = 0;
   }
 
-  window.scrollTo(0, 0);
-  document.documentElement.scrollTop = 0;
+  curPage = name;
 
   if (name === 'today') renderToday();
   else if (name === 'dict') renderDict();
   else if (name === 'report') { checkAchievements(); renderReport(); }
   else if (name === 'mine') renderMine();
+}
+
+/* ---------------- 左右滑动切 tab ---------------- */
+function bindPagerSwipe() {
+  const pager = $('pager');
+  if (!pager) return;
+  let sx = 0, sy = 0, dx = 0, lock = null, live = false, t0 = 0;
+
+  const widthOf = () => pager.clientWidth || window.innerWidth;
+  const glow = () => document.querySelector('.tab-glow');
+
+  pager.addEventListener('touchstart', (e) => {
+    live = false;
+    if (curPage !== TABS[tabIdx]) return;   /* 推入页不接管手势 */
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    sx = t.clientX; sy = t.clientY; dx = 0; lock = null; live = true; t0 = Date.now();
+  }, { passive: true });
+
+  pager.addEventListener('touchmove', (e) => {
+    if (!live || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const mx = t.clientX - sx;
+    const my = t.clientY - sy;
+
+    if (!lock) {
+      /* 先定方向：横向意图够明确才接管，否则放手让页面纵向滚 */
+      if (Math.abs(mx) > 12 && Math.abs(mx) > Math.abs(my) * 1.4) lock = 'x';
+      else if (Math.abs(my) > 8 && Math.abs(my) >= Math.abs(mx)) { live = false; return; }
+      else return;
+      pager.classList.add('dragging');
+    }
+
+    e.preventDefault();
+    dx = mx;
+    let d = dx;
+    if ((tabIdx === 0 && d > 0) || (tabIdx === TABS.length - 1 && d < 0)) d *= 0.3;
+    pager.style.transform = 'translateX(calc(' + (-tabIdx * 100) + '% + ' + d + 'px))';
+
+    /* 高亮块按滑动进度在两格之间插值：手指左滑（d<0）就是去右边那一格，
+       所以进度取 -d，别写成 +d，否则高亮会跟手指反着走 */
+    const g = glow();
+    if (g) {
+      let prog = -d / widthOf();
+      prog = Math.max(-tabIdx, Math.min(TABS.length - 1 - tabIdx, prog));
+      g.style.transition = 'none';
+      g.style.transform =
+        'translateX(calc(' + (tabIdx * 100) + '% + ' + (prog * 100).toFixed(2) + '%))';
+    }
+  }, { passive: false });
+
+  const finish = () => {
+    if (lock !== 'x') { live = false; return; }
+    live = false; lock = null;
+    pager.classList.remove('dragging');
+    const g = glow();
+    if (g) g.style.transition = '';
+
+    const w = widthOf();
+    const v = dx / Math.max(1, Date.now() - t0);
+    let next = tabIdx;
+    if (dx < -w * 0.26 || (v < -0.45 && dx < -36)) next = Math.min(TABS.length - 1, tabIdx + 1);
+    else if (dx > w * 0.26 || (v > 0.45 && dx > 36)) next = Math.max(0, tabIdx - 1);
+
+    if (next !== tabIdx) goTab(TABS[next]);
+    else setTabIndex(tabIdx, true);
+  };
+
+  pager.addEventListener('touchend', finish);
+  pager.addEventListener('touchcancel', finish);
+}
+
+/* ---------------- 顶栏玻璃：滚起来才浮出 ---------------- */
+function bindStickyHeads() {
+  ALL_PAGES.forEach((p) => {
+    const el = $('page-' + p);
+    if (!el) return;
+    const head = el.querySelector('.page-head');
+    if (!head) return;
+    el.addEventListener('scroll', () => {
+      head.classList.toggle('stuck', el.scrollTop > 3);
+    }, { passive: true });
+  });
 }
 
 function goTab(page) {
@@ -396,6 +498,8 @@ async function boot() {
   }
 
   bindTabs();
+  bindPagerSwipe();
+  bindStickyHeads();
   bindToday();
   bindStudy();
   bindDict();

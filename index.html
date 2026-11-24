@@ -12,7 +12,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=20261124g">
+<link rel="stylesheet" href="style.css?v=20261124h">
 </head>
 <body>
 
@@ -37,6 +37,8 @@
 </div>
 
 <main id="app" hidden>
+
+  <div id="pager">
 
   <!-- ================= 今天 ================= -->
   <section id="page-today" class="page">
@@ -144,49 +146,6 @@
     <div id="dict-results"></div>
   </section>
 
-  <!-- ================= 词条详情 ================= -->
-  <section id="page-detail" class="page pushed" hidden>
-    <header class="page-head push-head">
-      <button class="icon-btn" id="btn-detail-back" aria-label="返回">‹</button>
-      <div class="head-text">
-        <p class="eyebrow" id="d-lex">—</p>
-        <h1 id="d-word">—</h1>
-      </div>
-      <button class="icon-btn" id="btn-detail-speak" aria-label="发音">
-        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
-      </button>
-    </header>
-
-    <p class="phonetic detail-ph" id="d-ph"></p>
-    <div class="detail-actions">
-      <button class="chip" id="btn-detail-wb">加入错词本</button>
-      <span class="chip-static" id="d-stat"></span>
-    </div>
-
-    <div class="group">
-      <p class="group-title">释义</p>
-      <ul class="senses" id="d-senses"></ul>
-      <p class="en-def" id="d-en"></p>
-    </div>
-
-    <div class="group" id="d-forms-wrap" hidden>
-      <p class="group-title">词形变化</p>
-      <div class="chips" id="d-forms"></div>
-    </div>
-
-    <div class="group" id="d-fam-wrap" hidden>
-      <p class="group-title">词族</p>
-      <p class="hint" id="d-fam-note"></p>
-      <div class="fam-list" id="d-fam"></div>
-    </div>
-
-    <div class="group" id="d-sent-wrap" hidden>
-      <p class="group-title">例句</p>
-      <div class="sent-list" id="d-sent"></div>
-    </div>
-
-    <div class="cta-space tall"></div>
-  </section>
 
   <!-- ================= 报告 ================= -->
   <section id="page-report" class="page" hidden>
@@ -371,7 +330,7 @@
       <p class="group-title">关于</p>
       <button class="row link" id="btn-about">
         <span class="row-title">关于识词</span>
-        <span class="row-val"><span id="app-ver">v3.1</span> <span class="chev">›</span></span>
+        <span class="row-val"><span id="app-ver">v3.1.1</span> <span class="chev">›</span></span>
       </button>
       <button class="row link" id="btn-update">
         <span class="row-title">检查更新</span>
@@ -382,6 +341,53 @@
 
     <div class="cta-space tall"></div>
   </section>
+
+  </div>
+
+  <!-- ================= 词条详情 ================= -->
+  <section id="page-detail" class="page pushed" hidden>
+    <header class="page-head push-head">
+      <button class="icon-btn" id="btn-detail-back" aria-label="返回">‹</button>
+      <div class="head-text">
+        <p class="eyebrow" id="d-lex">—</p>
+        <h1 id="d-word">—</h1>
+      </div>
+      <button class="icon-btn" id="btn-detail-speak" aria-label="发音">
+        <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+      </button>
+    </header>
+
+    <p class="phonetic detail-ph" id="d-ph"></p>
+    <div class="detail-actions">
+      <button class="chip" id="btn-detail-wb">加入错词本</button>
+      <span class="chip-static" id="d-stat"></span>
+    </div>
+
+    <div class="group">
+      <p class="group-title">释义</p>
+      <ul class="senses" id="d-senses"></ul>
+      <p class="en-def" id="d-en"></p>
+    </div>
+
+    <div class="group" id="d-forms-wrap" hidden>
+      <p class="group-title">词形变化</p>
+      <div class="chips" id="d-forms"></div>
+    </div>
+
+    <div class="group" id="d-fam-wrap" hidden>
+      <p class="group-title">词族</p>
+      <p class="hint" id="d-fam-note"></p>
+      <div class="fam-list" id="d-fam"></div>
+    </div>
+
+    <div class="group" id="d-sent-wrap" hidden>
+      <p class="group-title">例句</p>
+      <div class="sent-list" id="d-sent"></div>
+    </div>
+
+    <div class="cta-space tall"></div>
+  </section>
+
 
   <!-- ================= 导入 ================= -->
   <section id="page-import" class="page pushed" hidden>
@@ -543,6 +549,8 @@
 </main>
 
 <nav id="tabbar" hidden>
+  <div class="bar">
+    <span class="tab-glow" aria-hidden="true"></span>
   <button class="tab on" data-page="today">
     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>
     <span>今天</span>
@@ -559,14 +567,15 @@
     <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>
     <span>我的</span>
   </button>
+  </div>
 </nav>
 
 <input type="file" id="file-import" accept=".json,application/json" hidden>
 
-<script src="js/core.js?v=20261124g"></script>
-<script src="js/dict.js?v=20261124g"></script>
-<script src="js/study.js?v=20261124g"></script>
-<script src="js/views.js?v=20261124g"></script>
-<script src="js/boot.js?v=20261124g"></script>
+<script src="js/core.js?v=20261124h"></script>
+<script src="js/dict.js?v=20261124h"></script>
+<script src="js/study.js?v=20261124h"></script>
+<script src="js/views.js?v=20261124h"></script>
+<script src="js/boot.js?v=20261124h"></script>
 </body>
 </html>

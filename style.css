@@ -22,9 +22,19 @@
   --r: 12px;
   --r-s: 8px;
   --pad: 16px;
-  --tab-h: 58px;
+  --tab-h: 58px;      /* 悬浮胶囊高 */
+  --tab-pad: 14px;    /* 胶囊距屏幕底 */
+  --tab-gap: 14px;    /* 主操作区与胶囊之间 */
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
+
+  /* 玻璃：底色只到六成，剩下的交给模糊；内高光是 iOS 那层「玻璃边」的关键 */
+  --glass: rgba(255, 255, 255, 0.66);
+  --glass-strong: rgba(255, 255, 255, 0.6);
+  --glass-blur: saturate(180%) blur(20px);
+  --glass-blur-strong: saturate(200%) blur(26px);
+  --glass-li: inset 0 0.5px 0 rgba(255, 255, 255, 0.9), inset 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+  --glass-shadow: 0 12px 34px -10px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.04);
   color-scheme: light dark;
 }
 
@@ -43,6 +53,10 @@
     --bad: #e8615f;
     --warn: #d9a148;
     --mask: rgba(0, 0, 0, 0.55);
+    --glass: rgba(22, 22, 26, 0.62);
+    --glass-strong: rgba(26, 26, 30, 0.64);
+    --glass-li: inset 0 0.5px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+    --glass-shadow: 0 12px 34px -8px rgba(0, 0, 0, 0.66), 0 2px 6px rgba(0, 0, 0, 0.3);
   }
 }
 
@@ -59,6 +73,10 @@ html[data-theme='dark'] {
   --ink: #f2f2f5; --ink-2: #abaab3; --ink-3: #909098; --sep: #2a2a2e;
   --acc: #8098ff; --acc-soft: #1f2742; --ok: #42b07e; --bad: #e8615f; --warn: #d9a148;
   --mask: rgba(0, 0, 0, 0.55);
+  --glass: rgba(22, 22, 26, 0.62);
+  --glass-strong: rgba(26, 26, 30, 0.64);
+  --glass-li: inset 0 0.5px 0 rgba(255, 255, 255, 0.14), inset 0 0 0 0.5px rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 12px 34px -8px rgba(0, 0, 0, 0.66), 0 2px 6px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 
@@ -74,13 +92,15 @@ html, body {
   text-rendering: optimizeLegibility;
 }
 
+/* 页面不再由 body 滚动：每个 tab 页各自是滚动容器，
+   内容才能真正从悬浮底栏下面穿过，玻璃才有东西可模糊 */
 body {
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   overscroll-behavior-y: none;
-  padding-bottom: calc(var(--tab-h) + var(--safe-b));
+  padding-bottom: 0;
 }
-body.fullscreen { padding-bottom: 0; }
 body.noscroll { overflow: hidden; }
 
 button, input, textarea, select {
@@ -210,9 +230,10 @@ input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
 
 /* ---------------- 页面容器 ---------------- */
 .page {
-  max-width: 560px;
-  margin: 0 auto;
-  padding: calc(12px + var(--safe-t)) var(--pad) 0;
+  /* 宽屏时靠左右内边距把内容收到 560，而不是 max-width + margin auto：
+     滑动容器里每页必须是整屏宽的 flex 子项 */
+  --pad-l: max(var(--pad), calc((100vw - 560px) / 2));
+  padding: 0 var(--pad-l) calc(var(--tab-h) + var(--tab-pad) + var(--safe-b) + 20px);
   animation: pageIn 0.22s ease;
 }
 /* 只用 opacity 做入场：transform 会让 fixed 子元素（评分条、底部按钮）
@@ -221,16 +242,87 @@ input[type='search']::-webkit-search-cancel-button { -webkit-appearance: none; }
   from { opacity: 0; }
   to { opacity: 1; }
 }
+
+/* ---------------- 横向页面容器 ---------------- */
+#pager {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  transition: transform 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* 只在真正拖动时提升合成层：常驻 will-change 会让相邻两页产生接缝线 */
+#pager.dragging { transition: none; will-change: transform; }
+#pager > .page {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  overflow-y: auto;
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  animation: none;
+}
+/* 首页底部有常驻主操作区，多留一截给它 */
+#page-today { padding-bottom: calc(var(--tab-h) + var(--tab-pad) + var(--tab-gap) + var(--safe-b) + 92px); }
+
+/* 滚动条：iOS 上本来就会淡出，桌面 / 截图里却是常驻的一条灰杠，
+   横向切页时正好压在页缝上，看着像接缝。内容照样能滑，只是不画这条杠 */
+#pager > .page, .page.pushed { scrollbar-width: none; }
+#pager > .page::-webkit-scrollbar, .page.pushed::-webkit-scrollbar { width: 0; height: 0; }
+
+/* 推入页：脱离 pager，整屏盖住（含底栏） */
+.page.pushed {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg);
+  padding-bottom: calc(28px + var(--safe-b));
+  animation: pushIn 0.24s ease;
+}
+@keyframes pushIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 body.reduce-motion .page,
 body.reduce-motion * { animation: none !important; transition: none !important; }
 
+/* 顶栏吸顶：滚动后浮出一层玻璃，内容从它下面虚化穿过 */
 .page-head {
+  position: sticky;
+  top: 0;
+  z-index: 12;
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  padding: 18px 0 20px;
+  margin: 0 calc(var(--pad-l, var(--pad)) * -1);
+  padding: calc(14px + var(--safe-t)) var(--pad-l, var(--pad)) 12px;
+  background: transparent;
+  transition: padding 0.2s ease;
 }
+.page-head::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--glass-blur);
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-li);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+  z-index: -1;
+}
+.page-head.stuck::before { opacity: 1; }
+.page-head.stuck { padding-bottom: 10px; }
+.page-head > * { position: relative; }
 .head-text { min-width: 0; }
 .eyebrow {
   font-size: 12px;
@@ -246,7 +338,7 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
 }
 .head-acts { display: flex; align-items: center; gap: 8px; padding-bottom: 4px; }
 
-.push-head { align-items: center; justify-content: flex-start; gap: 6px; }
+.push-head { align-items: center; justify-content: flex-start; gap: 6px; padding-bottom: 14px; }
 .push-head .head-text { flex: 1; }
 .push-head h1 { font-size: 24px; }
 
@@ -601,23 +693,21 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
 /* ---------------- 主按钮 ---------------- */
 .cta-space { height: 110px; }
 .cta-space.tall { height: calc(40px + var(--safe-b)); }
+/* 主操作区浮在胶囊之上：背景透明，让内容从按钮周围穿过去，
+   否则一条实底会把底栏的玻璃完全挡住 */
 .cta-wrap {
   position: fixed;
-  left: 0; right: 0;
-  bottom: calc(var(--tab-h) + var(--safe-b));
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--tab-h) + var(--tab-pad) + var(--tab-gap) + var(--safe-b));
+  width: min(100%, 560px);
   z-index: 20;
-  padding: 6px var(--pad) 12px;
-  background: var(--bg);
+  padding: 0 var(--pad);
+  background: none;
   pointer-events: none;
 }
-.cta-wrap::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0;
-  bottom: 100%;
-  height: 30px;
-  background: linear-gradient(to top, var(--bg), transparent);
-  pointer-events: none;
+.cta-note {
+  text-shadow: 0 0 6px var(--bg), 0 0 10px var(--bg), 0 0 14px var(--bg);
 }
 .cta-note {
   font-size: 11px;
@@ -636,7 +726,7 @@ body.fullscreen .cta-wrap { bottom: var(--safe-b); }
   max-width: 528px;
   margin: 0 auto;
   height: 50px;
-  border-radius: 12px;
+  border-radius: 100px;
   background: var(--acc);
   color: #fff;
   font-size: 16px;
@@ -1262,37 +1352,77 @@ body.fullscreen .quiz-card { margin-bottom: calc(96px + var(--safe-b)); }
 .done-wrap .btn-primary { margin-top: 24px; }
 
 /* ---------------- 底部标签栏 ---------------- */
+/* ---------------- 悬浮玻璃底栏 ---------------- */
 #tabbar {
   position: fixed;
-  left: 0; right: 0; bottom: 0;
+  left: 0; right: 0;
+  bottom: 0;
   z-index: 30;
+  padding: 0 16px calc(var(--tab-pad) + var(--safe-b));
+  background: none;
+  border: 0;
+  pointer-events: none;
+}
+/* 胶囊下方那条缝会漏出没被模糊的内容，用一层底渐隐收干净 */
+#tabbar::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: 0;
+  height: calc(var(--tab-pad) + var(--safe-b) + 10px);
+  background: linear-gradient(to top, var(--bg) 55%, transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+#tabbar .bar {
+  position: relative;
   display: flex;
-  height: calc(var(--tab-h) + var(--safe-b));
-  padding-bottom: var(--safe-b);
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
-  border-top: 0.5px solid var(--sep);
+  height: var(--tab-h);
+  max-width: 528px;
+  margin: 0 auto;
+  border-radius: 100px;
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  box-shadow: var(--glass-shadow), var(--glass-li);
+  overflow: hidden;
+  pointer-events: auto;
+}
+.tab-glow {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  width: calc((100% - 10px) / 4);
+  border-radius: 100px;
+  background: color-mix(in srgb, var(--acc) 11%, transparent);
+  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+  pointer-events: none;
 }
 .tab {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 2px;
   color: var(--ink-3);
   font-size: 10px;
-  padding-top: 2px;
+  letter-spacing: 0.2px;
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), color 0.18s;
 }
+.tab svg { transition: transform 0.3s cubic-bezier(0.32, 1.5, 0.5, 1); }
 .tab.on { color: var(--acc); }
-.tab:active { opacity: 0.6; }
+.tab.on svg { transform: translateY(-1px) scale(1.07); }
+.tab:active { transform: scale(0.93); }
 
 /* ---------------- Toast ---------------- */
 .toast {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--tab-h) + var(--safe-b) + 24px);
+  bottom: calc(var(--tab-h) + var(--tab-pad) + var(--safe-b) + 22px);
   transform: translate(-50%, 0);
   background: rgba(20, 20, 24, 0.9);
   color: #fff;
@@ -1312,4 +1442,24 @@ body.fullscreen .quiz-card { margin-bottom: calc(96px + var(--safe-b)); }
   .quiz-card { max-width: 600px; }
   .grade-bar { max-width: 600px; }
   .chart { height: 140px; }
+}
+
+/* ---------------- 按压反馈 ----------------
+   小控件按下收紧、大块列表按下变淡，松开都带一点回弹，
+   接近 iOS 上「按下去有重量」的手感 */
+.chip, .seg button, .opt, .icon-btn, .icon-sm, .chips .c, .grade,
+.btn-primary, .btn-ghost, .row.link, .group.link-group, .exam-row,
+.today-card, .wl-toggle, .tab, .play-big, .btn-submit {
+  transition: transform 0.24s cubic-bezier(0.32, 0.72, 0, 1),
+              opacity 0.18s ease, background 0.15s ease;
+}
+.chip:active, .seg button:active, .icon-btn:active, .icon-sm:active,
+.chips .c:active, .grade:active, .wl-toggle:active {
+  transform: scale(0.94);
+  transition-duration: 0.09s;
+}
+.btn-primary:active, .opt:active, .play-big:active { transform: scale(0.972); transition-duration: 0.09s; }
+.row.link:active, .group.link-group:active, .exam-row:active, .today-card:active {
+  transform: scale(0.993);
+  transition-duration: 0.1s;
 }
