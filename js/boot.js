@@ -149,6 +149,70 @@ function goTab(page) {
   showPage(page);
 }
 
+/* ================= 分段控件的滑块 ================= */
+/* 选中项的底色不再是「自己变白」，而是一块独立的滑块滑过去：
+   每块 .seg 里插一枚 .seg-thumb，位置和宽度按当前 .on 的按钮实测 */
+function segThumb(seg) {
+  let t = seg.querySelector('.seg-thumb');
+  if (!t) {
+    t = document.createElement('i');
+    t.className = 'seg-thumb';
+    t.setAttribute('aria-hidden', 'true');
+    seg.insertBefore(t, seg.firstChild);
+  }
+  return t;
+}
+
+function syncSeg(seg, animate) {
+  if (!seg) return;
+  const t = segThumb(seg);
+  const on = seg.querySelector('button.on');
+  /* 隐藏页（推入页、还没切过去的 tab）量出来是 0，等它有了宽度再摆 */
+  if (!on || !seg.clientWidth) {
+    t.style.opacity = '0';
+    return;
+  }
+  const sr = seg.getBoundingClientRect();
+  const r = on.getBoundingClientRect();
+  const put = () => {
+    t.style.width = r.width + 'px';
+    t.style.transform = 'translate3d(' + (r.left - sr.left) + 'px, 0, 0)';
+    t.style.opacity = '1';
+  };
+  if (animate && t.dataset.ready === '1') {
+    put();
+    return;
+  }
+  /* 第一次落位、屏幕旋转、字体换了导致宽度变了：直接摆好，不补动画 */
+  t.classList.add('no-anim');
+  put();
+  void t.offsetWidth;
+  requestAnimationFrame(() => {
+    t.dataset.ready = '1';
+    t.classList.remove('no-anim');
+  });
+}
+
+function syncAllSegs(animate) {
+  $$('.seg').forEach((s) => syncSeg(s, animate === true));
+}
+
+function initSegThumbs() {
+  $$('.seg').forEach((seg) => {
+    segThumb(seg);
+    if (seg.__thumbRO || typeof ResizeObserver !== 'function') return;
+    /* 页面从 hidden 变成可见、屏幕旋转、容器宽度变了都走这里 */
+    seg.__thumbRO = new ResizeObserver(() => syncSeg(seg, false));
+    seg.__thumbRO.observe(seg);
+  });
+  addEventListener('resize', () => syncAllSegs(false), { passive: true });
+  addEventListener('orientationchange', () => setTimeout(() => syncAllSegs(false), 240));
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => syncAllSegs(false)).catch(() => {});
+  }
+  syncAllSegs(false);
+}
+
 /* ================= 绑定 ================= */
 function bindTabs() {
   $$('#tabbar .tab').forEach((b) => {
@@ -409,6 +473,7 @@ function bindSeg(id, onChange) {
     b.addEventListener('click', () => {
       $$('#' + id + ' button').forEach((x) => x.classList.remove('on'));
       b.classList.add('on');
+      syncSeg($(id), true);
       onChange(b.dataset.v);
       saveStore();
       if (id === 'seg-mode') renderModeSeg();
@@ -596,6 +661,7 @@ async function boot() {
   $('app').hidden = false;
   $('tabbar').hidden = false;
 
+  initSegThumbs();
   renderAll();
   showPage('today');
 

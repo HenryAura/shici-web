@@ -176,7 +176,15 @@ function renderModeSeg() {
   $$('#mode-seg button').forEach((b) => {
     b.classList.toggle('on', b.dataset.mode === S.settings.mode);
   });
-  $('mode-note').textContent = MODE_NOTE[S.settings.mode] || '';
+  const note = $('mode-note');
+  const txt = MODE_NOTE[S.settings.mode] || '';
+  if (note.textContent !== txt) {
+    note.textContent = txt;
+    note.classList.remove('swap');
+    void note.offsetWidth;
+    note.classList.add('swap');
+  }
+  syncSeg($('mode-seg'), true);
 }
 
 function renderHeat() {
@@ -716,6 +724,7 @@ function setSeg(id, v) {
   $$('#' + id + ' button').forEach((b) => {
     b.classList.toggle('on', b.dataset.v === v);
   });
+  syncSeg($(id), true);
 }
 
 function fillVoiceSelect() {
