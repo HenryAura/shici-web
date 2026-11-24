@@ -179,7 +179,7 @@ function bindMine() {
   });
 
   $('set-new').addEventListener('input', () => {
-    S.settings.newPerDay = clamp(Number($('set-new').value), 5, 100);
+    S.settings.newPerDay = clamp(Number($('set-new').value), NEW_MIN, NEW_MAX);
     renderNewVal();
     saveStore();
     renderExam();

@@ -5,7 +5,9 @@
 const DAY = 86400000;
 const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
-const APP_VER = 'v2.6';
+const NEW_MIN = 5;    // 每日新词下限
+const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
+const APP_VER = 'v2.7';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -88,6 +90,7 @@ function saveStore() {
 }
 function flushStore() {
   clearTimeout(saveTimer);
+  normalizeSettings(); // 落盘前夹一次，避免越界值写进存档
   try {
     localStorage.setItem(STORE, JSON.stringify({
       v: 3,
@@ -112,7 +115,7 @@ function normalizeSettings() {
   const s = S.settings;
   if ([34, 38, 42].indexOf(Number(s.wordSize)) < 0) s.wordSize = 34;
   s.wordSize = Number(s.wordSize);
-  s.newPerDay = clamp(Number(s.newPerDay) || 20, 5, 100);
+  s.newPerDay = clamp(Number(s.newPerDay) || 20, NEW_MIN, NEW_MAX);
   s.rate = clamp(Number(s.rate) || 0.9, 0.5, 1.3);
   if (['auto', 'light', 'dark'].indexOf(s.theme) < 0) s.theme = 'auto';
   if (['random', 'seq'].indexOf(s.order) < 0) s.order = 'random';
@@ -285,24 +288,26 @@ function examPlan() {
   const days = daysToExam();
   if (days === null) return null;
   const cs = coreStat();
-  const perDay = days > 0 ? Math.min(100, Math.ceil(cs.remain / days)) : 0;
+  // 建议值是「考前学完真实需要多少」，不封顶；能不能做到由 NEW_MAX 决定
+  const perDay = days > 0 ? Math.ceil(cs.remain / days) : 0;
   return {
     days: days,
     total: cs.total,
     done: cs.done,
     remain: cs.remain,
     suggest: perDay,
+    reachable: perDay <= NEW_MAX,
     pct: cs.total ? Math.round((cs.done / cs.total) * 100) : 0
   };
 }
 
-/** 今日实际新词量：设了考试日期且开启自动，就按倒排建议加量（不减少、不超过 100） */
+/** 今日实际新词量：设了考试日期且开启自动，就按倒排建议加量（只加不减，封顶 NEW_MAX） */
 function effectiveNewPerDay() {
-  const base = S.settings.newPerDay;
+  const base = clamp(Number(S.settings.newPerDay) || 20, NEW_MIN, NEW_MAX);
   if (!S.settings.examAuto) return base;
   const p = examPlan();
   if (!p || p.days <= 0 || p.suggest <= 0) return base;
-  return Math.max(base, Math.min(100, p.suggest));
+  return Math.max(base, Math.min(NEW_MAX, p.suggest));
 }
 
 /* ================= 设置应用 ================= */

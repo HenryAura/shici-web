@@ -109,6 +109,9 @@ function renderExam() {
     txt = '今天考试 · 全力以赴';
   } else if (p.remain === 0) {
     txt = '必背词已全部掌握 · 保持手感';
+  } else if (!p.reachable) {
+    // 真实所需已超过每日上限：如实说明，不把建议值悄悄压到上限装作能追上
+    txt = '剩余 ' + p.remain + ' 词 · 需每天 ' + p.suggest + ' 词，已按上限 ' + NEW_MAX + ' 推进';
   } else {
     txt = '剩余 ' + p.remain + ' 词 · 建议每天 ' + p.suggest + ' 词';
     if (!S.settings.examAuto) txt += ' · 未自动加量';
@@ -600,7 +603,13 @@ function renderNewVal() {
   const base = S.settings.newPerDay;
   const eff = effectiveNewPerDay();
   $('set-new-val').textContent = eff > base ? base + '→' + eff : String(base);
-  $('set-new-val').title = eff > base ? '按考试倒排已自动加量' : '';
+  if (eff > base) {
+    $('set-new-val').title = eff >= NEW_MAX
+      ? '已加到每日上限 ' + NEW_MAX
+      : '按考试倒排已自动加量';
+  } else {
+    $('set-new-val').title = '';
+  }
 }
 
 function renderMine() {
@@ -620,6 +629,9 @@ function renderMine() {
     eh.textContent = '设置考试日期后，每天的新词量会按剩余天数自动倒排。';
   } else if (!ep) {
     eh.textContent = '这个日期已经过去了，换一个日期或点 × 清除。';
+  } else if (!ep.reachable) {
+    eh.textContent = '距考试 ' + ep.days + ' 天 · 每天需 ' + ep.suggest + ' 词才学得完，已超过上限 ' +
+      NEW_MAX + '，建议缩小词量范围或提前开始。';
   } else {
     eh.textContent = '距考试 ' + ep.days + ' 天 · 必背 ' + ep.done + '/' + ep.total +
       (ep.days > 0 ? ' · 每天 ' + ep.suggest + ' 词' : '') +
