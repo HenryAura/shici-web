@@ -833,6 +833,112 @@ function wdSetStatus(text, cls) {
   el.style.color = cls === 'bad' ? 'var(--bad)' : cls === 'ok' ? 'var(--ok)' : '';
 }
 
+/* ================= GitHub Gist 后端 =================
+   备份存进用户自己的私密 Gist：一次粘贴只含 gist 权限的令牌，
+   之后与 WebDAV 走同一套「拉取合并 → 推送」流程。 */
+const GH_KEY = 'shici.gh';
+const GH_BASE = 'https://api.github.com/gists';   /* 注意：POST 不能带尾斜杠，/gists/ 会被 GitHub 拒掉 */
+
+function ghCfg() {
+  try { return JSON.parse(localStorage.getItem(GH_KEY) || 'null'); } catch (e) { return null; }
+}
+function saveGhCfg(cfg) {
+  if (cfg && (cfg.token || cfg.gist)) localStorage.setItem(GH_KEY, JSON.stringify(cfg));
+  else localStorage.removeItem(GH_KEY);
+}
+function readGhForm() {
+  return { token: $('gh-token').value.trim() };
+}
+function fillGhForm() {
+  const cfg = ghCfg();
+  if (cfg) $('gh-token').value = cfg.token || '';
+}
+
+async function ghRequest(token, gist, method, content) {
+  const body = content === undefined ? undefined : JSON.stringify({
+    description: '识词学习备份',
+    public: false,
+    files: { 'shiy-backup.json': { content: content } }
+  });
+  const res = await fetch(gist ? GH_BASE + '/' + gist : GH_BASE, {
+    method: method,
+    headers: {
+      Authorization: 'Bearer ' + token,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json; charset=utf-8'
+    },
+    body: body
+  });
+  if (!res.ok) {
+    throw new Error('GitHub HTTP ' + res.status +
+      (res.status === 401 ? '（令牌无效或过期）' :
+       res.status === 403 ? '（可能超出 GitHub 速率限制，稍后再试）' :
+       res.status === 404 ? '（Gist 不存在）' : ''));
+  }
+  return res.json();
+}
+
+async function ghRead(token, gist) {
+  if (!gist) return null;                              /* 还没建过备份 */
+  const j = await ghRequest(token, gist, 'GET');
+  const f = j && j.files && j.files[WD_FILE];
+  if (!f) return null;
+  let content = f.content;
+  if (f.truncated && f.raw_url) {                      /* 超 1MB 时 SDK 只给摘要 */
+    const r = await fetch(f.raw_url);
+    content = await r.text();
+  }
+  try { return JSON.parse(content); } catch (e) { throw new Error('云端备份内容异常'); }
+}
+
+async function ghWrite(token, gist, text) {
+  const j = await ghRequest(token, gist, gist ? 'PATCH' : 'POST', text);
+  return j.id;
+}
+
+/* ================= 同步后端抽象 =================
+   两个都配置时优先 GitHub；自动同步开关、合并模型两端共用。 */
+function syncBackend() {
+  const gh = ghCfg();
+  if (gh && gh.token) return { kind: 'gh' };
+  const cfg = wdCfg();
+  if (cfg && cfg.url) return { kind: 'wd' };
+  return null;
+}
+function syncConfigured() {
+  return !!syncBackend();
+}
+function syncSourceName() {
+  const b = syncBackend();
+  return b ? (b.kind === 'gh' ? 'GitHub' : 'WebDAV') : '';
+}
+
+async function syncRead() {
+  const b = syncBackend();
+  if (b.kind === 'gh') {
+    const cfg = ghCfg();
+    return ghRead(cfg.token, cfg.gist);
+  }
+  try {
+    const res = await wdRequest(wdCfg(), 'GET', WD_FILE);
+    return await res.json();
+  } catch (e) {
+    if (/HTTP 404/.test(e.message)) return null;       /* 云端还没有备份 */
+    throw e;
+  }
+}
+
+async function syncWrite(text) {
+  const b = syncBackend();
+  if (b.kind === 'gh') {
+    const cfg = ghCfg();
+    const id = await ghWrite(cfg.token, cfg.gist, text);
+    if (id && id !== cfg.gist) saveGhCfg(Object.assign({}, cfg, { gist: id }));
+    return;
+  }
+  await wdRequest(wdCfg(), 'PUT', WD_FILE, text);
+}
+
 /** 构造与鸿蒙端兼容的备份对象
  *  kv 只放成就快照：设置项结构两端不同，写错字段会污染鸿蒙端的设置，
  *  而鸿蒙恢复时本来就「保留本机设置」，所以设置放 web.settings 里自成一路。
@@ -970,16 +1076,31 @@ function importBackupFile(file) {
 }
 
 async function wdTest(btn) {
-  const cfg = readWdForm();
-  if (!cfg.url) { wdSetStatus('先填服务器地址', 'bad'); return; }
+  const gh = readGhForm(), wd = readWdForm();
+  if (!gh.token && !wd.url) { wdSetStatus('先填 GitHub 令牌或 WebDAV 地址', 'bad'); return; }
   btn.disabled = true;
   wdSetStatus('正在连接…');
   try {
-    await wdRequest(cfg, 'GET', WD_FILE);
-    wdSetStatus('连接成功，云端已有备份', 'ok');
+    if (gh.token) {
+      const prev = ghCfg() || {};
+      let gist = prev.gist, created = false;
+      if (gist) {
+        try { await ghRequest(gh.token, gist, 'GET'); }
+        catch (e) { if (/HTTP 404/.test(e.message)) gist = null; else throw e; }
+      }
+      if (!gist) {                            /* 首次连接顺手建好私密备份 */
+        const j = await ghRequest(gh.token, '', 'POST', JSON.stringify(buildBackup()));
+        gist = j.id; created = true;
+      }
+      saveGhCfg({ token: gh.token, gist: gist });
+      wdSetStatus('GitHub 连接成功' + (created ? '，已创建私密备份' : ''), 'ok');
+    } else {
+      await wdRequest(wd, 'GET', WD_FILE);
+      wdSetStatus('WebDAV 连接成功，云端已有备份', 'ok');
+    }
   } catch (e) {
-    if (/HTTP 404/.test(e.message)) {
-      wdSetStatus('连接成功，云端还没有备份', 'ok');
+    if (!gh.token && /HTTP 404/.test(e.message)) {
+      wdSetStatus('WebDAV 连接成功，云端还没有备份', 'ok');
     } else {
       wdSetStatus('连接失败：' + e.message + (String(e.message).indexOf('Failed to fetch') >= 0 ? '（可能是网盘未允许跨域）' : ''), 'bad');
     }
@@ -1005,13 +1126,14 @@ function fillWdForm() {
 }
 
 async function wdBackup(btn) {
-  const cfg = readWdForm();
-  if (!cfg.url) { wdSetStatus('先填服务器地址', 'bad'); return; }
+  const gh = readGhForm(), wd = readWdForm();
+  if (!gh.token && !wd.url) { wdSetStatus('先填 GitHub 令牌或 WebDAV 地址', 'bad'); return; }
+  if (gh.token) saveGhCfg(Object.assign({}, ghCfg() || {}, { token: gh.token }));
+  if (wd.url) saveWdCfg(Object.assign({}, wdCfg() || {}, wd));
   btn.disabled = true;
   wdSetStatus('正在上传…');
   try {
-    await wdRequest(cfg, 'PUT', WD_FILE, JSON.stringify(buildBackup()));
-    saveWdCfg(cfg);
+    await syncWrite(JSON.stringify(buildBackup()));
     wdSetStatus('已上传 · ' + new Date().toLocaleTimeString(), 'ok');
     toast('备份已上传');
   } catch (e) {
@@ -1022,16 +1144,17 @@ async function wdBackup(btn) {
 }
 
 async function wdRestore(btn) {
-  const cfg = readWdForm();
-  if (!cfg.url) { wdSetStatus('先填服务器地址', 'bad'); return; }
+  const gh = readGhForm(), wd = readWdForm();
+  if (!gh.token && !wd.url) { wdSetStatus('先填 GitHub 令牌或 WebDAV 地址', 'bad'); return; }
   if (!confirm('从云端恢复会合并进本机进度，本机设置保留。继续？')) return;
+  if (gh.token) saveGhCfg(Object.assign({}, ghCfg() || {}, { token: gh.token }));
+  if (wd.url) saveWdCfg(Object.assign({}, wdCfg() || {}, wd));
   btn.disabled = true;
   wdSetStatus('正在下载…');
   try {
-    const res = await wdRequest(cfg, 'GET', WD_FILE);
-    const data = await res.json();
+    const data = await syncRead();
+    if (!data) throw new Error('云端还没有备份');
     const r = mergeBackup(data);
-    saveWdCfg(cfg);
     wdSetStatus('恢复完成 · 进度 ' + r.p + ' · 错词 ' + r.w, 'ok');
     toast('已合并云端备份');
     wdSyncDebounced(2500);          /* 恢复完顺手把合并结果推上去 */
@@ -1046,6 +1169,7 @@ async function wdRestore(btn) {
    数据模型是「只增不减」：进度取更优、历史按天取大、错词取并集——
    所以可以放心「拉下来合并 → 推上去」，不需要真正的冲突解决 */
 const SYNC_AT_KEY = 'shici.syncAt';
+const SYNC_AUTO_KEY = 'shici.sync.auto';
 let __wdSyncing = false;
 let __wdTimer = 0;
 
@@ -1054,26 +1178,35 @@ function lastSyncAt() {
   return v || 0;
 }
 
+function syncAutoOn() {
+  return localStorage.getItem(SYNC_AUTO_KEY) === '1';
+}
+function setSyncAuto(on) {
+  if (on) localStorage.setItem(SYNC_AUTO_KEY, '1');
+  else localStorage.removeItem(SYNC_AUTO_KEY);
+}
+
+/* 老版本把自动同步开关存在 WebDAV 配置里，迁一次到独立 key */
+(function migrateSyncAuto() {
+  if (localStorage.getItem(SYNC_AUTO_KEY) === null) {
+    const cfg = wdCfg();
+    if (cfg && cfg.auto) setSyncAuto(true);
+  }
+})();
+
 async function wdSyncNow(reason) {
-  const cfg = wdCfg();
-  if (!cfg || !cfg.url || !cfg.auto || __wdSyncing) return false;
+  if (!syncConfigured() || !syncAutoOn() || __wdSyncing) return false;
   __wdSyncing = true;
   try {
-    let remote = null;
-    try {
-      const res = await wdRequest(cfg, 'GET', WD_FILE);
-      remote = await res.json();
-    } catch (e) {
-      if (!/HTTP 404/.test(e.message)) throw e;   /* 云端还没有备份，直接上传 */
-    }
+    const remote = await syncRead();
     if (remote && remote.app === 'shiy') mergeBackup(remote);
-    await wdRequest(cfg, 'PUT', WD_FILE, JSON.stringify(buildBackup()));
+    await syncWrite(JSON.stringify(buildBackup()));
     localStorage.setItem(SYNC_AT_KEY, String(Date.now()));
     if (curPage === 'wd') wdSetStatus('已自动同步 · ' + new Date().toLocaleTimeString('zh-CN', { hour12: false }), 'ok');
     return true;
   } catch (e) {
-    /* 静默失败：网络抖一下别打断用户，进了 WD 页再显示原因 */
-    console.warn('[wd-sync]', reason, e);
+    /* 静默失败：网络抖一下别打断用户，进了同步页再显示原因 */
+    console.warn('[sync]', reason, e);
     if (curPage === 'wd') wdSetStatus('自动同步失败：' + e.message, 'bad');
     return false;
   } finally {
@@ -1087,13 +1220,13 @@ function wdSyncDebounced(ms) {
 }
 
 function refreshWdState() {
-  const cfg = wdCfg();
+  const b = syncBackend();
   let txt = '未配置';
-  if (cfg && cfg.url) {
+  if (b) {
     const at = lastSyncAt();
-    txt = cfg.auto
+    txt = syncAutoOn()
       ? (at ? '已同步 ' + new Date(at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '自动同步已开')
-      : '已配置';
+      : '已配置（' + syncSourceName() + '）';
   }
   $('wd-state').innerHTML = txt + ' <span class="chev">›</span>';
 }

@@ -1062,6 +1062,7 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
 .sent-list .cn { font-size: 13px; color: var(--ink-3); margin-top: 3px; }
 
 .hint { font-size: 12px; line-height: 1.6; color: var(--ink-3); }
+.hint a { color: var(--acc); text-decoration: underline; text-underline-offset: 2px; }
 
 /* ---------------- 报告 ---------------- */
 .stat-grid {

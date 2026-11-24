@@ -322,7 +322,7 @@
         <span class="row-val">合并进度 <span class="chev">›</span></span>
       </button>
       <button class="row link" id="btn-wd">
-        <span class="row-title">WebDAV 备份</span>
+        <span class="row-title">云同步</span>
         <span class="row-val" id="wd-state">未配置 <span class="chev">›</span></span>
       </button>
       <button class="row link danger" id="btn-reset">
@@ -522,12 +522,22 @@
     <header class="page-head push-head">
       <button class="icon-btn" id="btn-wd-back" aria-label="返回">‹</button>
       <div class="head-text">
-        <p class="eyebrow">与鸿蒙端共用同一份备份</p>
-        <h1>WebDAV</h1>
+        <p class="eyebrow">iPhone · iPad · 鸿蒙端共用同一份备份</p>
+        <h1>云同步</h1>
       </div>
     </header>
 
     <div class="group">
+      <p class="group-title">GitHub 同步（推荐）</p>
+      <label class="field">
+        <span>访问令牌</span>
+        <input id="gh-token" type="password" autocomplete="off" spellcheck="false" placeholder="粘贴只含 gist 权限的令牌">
+      </label>
+      <p class="hint">点 <a href="https://github.com/settings/tokens/new?scopes=gist&amp;description=shici-sync" target="_blank" rel="noopener">打开 GitHub 令牌页（已勾选 gist 权限）</a>，点 Generate token，把生成的令牌粘贴回来。备份存进你的私密 Gist，别人看不到，令牌只保存在本机。</p>
+    </div>
+
+    <div class="group">
+      <p class="group-title">WebDAV（备用）</p>
       <label class="field">
         <span>服务器地址</span>
         <input id="wd-url" type="url" placeholder="https://dav.jianguoyun.com/dav/" autocomplete="off" autocapitalize="off" spellcheck="false">
@@ -540,7 +550,7 @@
         <span>应用密码</span>
         <input id="wd-pass" type="password" autocomplete="current-password">
       </label>
-      <p class="hint">账号与应用密码只保存在本机。坚果云在「账户信息 → 安全选项 → 添加应用」生成应用密码，不要用登录密码。</p>
+      <p class="hint">不用 GitHub 时才填。两个都填时优先用 GitHub。坚果云在「账户信息 → 安全选项 → 添加应用」生成应用密码，不要用登录密码。</p>
     </div>
 
     <div class="group">

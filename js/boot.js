@@ -439,10 +439,10 @@ function bindMine() {
   $('btn-import-file').addEventListener('click', () => $('file-import').click());
 
   $('btn-wd').addEventListener('click', () => {
+    fillGhForm();
     fillWdForm();
-    const cfg = wdCfg();
-    $('sw-wd-auto').setAttribute('aria-checked', cfg && cfg.auto ? 'true' : 'false');
-    wdSetStatus(cfg && cfg.auto ? (lastSyncAt() ? '上次同步 ' + new Date(lastSyncAt()).toLocaleTimeString('zh-CN', { hour12: false }) : '等待同步') : '未连接');
+    $('sw-wd-auto').setAttribute('aria-checked', syncAutoOn() ? 'true' : 'false');
+    wdSetStatus(syncConfigured() ? (syncAutoOn() ? (lastSyncAt() ? '上次同步 ' + new Date(lastSyncAt()).toLocaleTimeString('zh-CN', { hour12: false }) : '等待同步') : '未开启自动同步') : '未连接');
     showPage('wd');
   });
 
@@ -458,8 +458,8 @@ function bindMine() {
     alert('识词 · 网页版 ' + APP_VER + '\n\n词库 ECDICT（MIT License）：核心 ' + (S.order.length) + ' 词，' +
       '扩展 ' + EXT.size + ' 词，词组 ' + PHRASES.size + ' 条\n' +
       '例句 Tatoeba（CC-BY 2.0 FR）\n\n' +
-      '进度只保存在本机浏览器，不上传任何服务器。\n' +
-      '通过 WebDAV 备份时可与鸿蒙端共用同一份 shiy-backup.json。');
+      '进度只保存在本机浏览器。开启云同步后通过 GitHub 私密 Gist 或 WebDAV 自动合并，' +
+      'iPhone / iPad / 鸿蒙端共用同一份 shiy-backup.json。');
   });
 
   const verEl = $('app-ver');
@@ -498,22 +498,19 @@ function bindSeg(id, onChange) {
 function bindWd() {
   $('btn-wd-back').addEventListener('click', () => showPage('mine'));
   $('wd-save').addEventListener('click', () => {
-    const prev = wdCfg();
-    saveWdCfg(Object.assign({}, prev || {}, readWdForm()));
+    saveWdCfg(Object.assign({}, wdCfg() || {}, readWdForm()));
+    saveGhCfg(Object.assign({}, ghCfg() || {}, readGhForm()));
     toast('配置已保存到本机');
-    if ($('sw-wd-auto').getAttribute('aria-checked') === 'true' && !wdCfg().auto) {
-      saveWdCfg(Object.assign({}, wdCfg(), { auto: true }));   /* 开关开着就别在保存时悄悄关掉 */
-    }
     renderMine();
+    refreshWdState();
   });
   $('wd-test').addEventListener('click', (e) => wdTest(e.currentTarget));
   $('wd-backup').addEventListener('click', (e) => wdBackup(e.currentTarget));
   $('wd-restore').addEventListener('click', (e) => wdRestore(e.currentTarget));
   $('sw-wd-auto').addEventListener('click', () => {
-    const cfg = wdCfg();
-    if (!cfg || !cfg.url) { wdSetStatus('先填服务器地址并保存配置', 'bad'); return; }
-    const on = !cfg.auto;
-    saveWdCfg(Object.assign({}, cfg, { auto: on }));
+    if (!syncConfigured()) { wdSetStatus('先填 GitHub 令牌或 WebDAV 地址并保存', 'bad'); return; }
+    const on = !syncAutoOn();
+    setSyncAuto(on);
     $('sw-wd-auto').setAttribute('aria-checked', on ? 'true' : 'false');
     renderMine();
     if (on) {
