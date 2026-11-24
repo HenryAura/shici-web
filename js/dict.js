@@ -5,8 +5,33 @@
 const FORMS = new Map();   // 变形（xf）：went -> go
 const DERIV = new Map();   // 派生（fam）：abandonment -> abandon
 const SENTS = new Map();   // 例句：word -> [[en, cn], ...]
+const EXT = new Map();     // 扩展词库：核心 5063 词之外的常用词（unfruitful 之类）
+const PHRASES = new Map(); // 高频词组：trace back to / put up with
 let SEARCH_CACHE = null;   // 中文检索用： [{w, g}]
+let EXTRA_INDEX = null;    // 扩展词库的中文检索缓存
 let dictLoaded = false;
+let extraLoaded = false;
+let extraLoading = null;
+
+/** 核心词库缺的功能词。考研大纲不收 a / of / is 这类词，但导入和组句都要用到 */
+const FUNC_WORDS = {
+  a: [['art.', '一、一个（辅音前）']], an: [['art.', '一、一个（元音前）']],
+  of: [['prep.', '的、属于、关于']],
+  these: [['pron.', '这些']], those: [['pron.', '那些']],
+  i: [['pron.', '我']], they: [['pron.', '他们、她们、它们']],
+  us: [['pron.', '我们（宾格）']], your: [['pron.', '你的、你们的']],
+  his: [['pron.', '他的']], its: [['pron.', '它的']], our: [['pron.', '我们的']],
+  their: [['pron.', '他们的、她们的、它们的']],
+  is: [['v.', '是（be 第三人称单数）']], am: [['v.', '是（be 第一人称单数）']],
+  are: [['v.', '是（be 复数）']], was: [['v.', '是（be 过去式单数）']],
+  were: [['v.', '是（be 过去式复数）']], been: [['v.', 'be 的过去分词']],
+  being: [['v.', 'be 的现在分词']],
+  does: [['v.', '做（do 第三人称单数）']], did: [['v.', '做（do 过去式）']],
+  has: [['v.', '有（have 第三人称单数）']], had: [['v.', '有（have 过去式）']],
+  could: [['v.', '能、可以（can 过去式）']], may: [['v.', '可以、可能']],
+  must: [['v.', '必须']]
+};
+
 
 /* ================= 加载 ================= */
 async function loadData() {
@@ -25,6 +50,13 @@ async function loadData() {
       S.order.push(e.w);
     }
   });
+
+  // 功能词只进词典（能查、能答），不进新词池，免得把 a / of 排进学习计划
+  for (const w in FUNC_WORDS) {
+    if (!S.dict.has(w)) {
+      S.dict.set(w, { w: w, ph: '', m: FUNC_WORDS[w], fam: [], en: [], f: 1, lv: 0, src: 'func' });
+    }
+  }
 
   if (sentRes && sentRes.ok) {
     try {
@@ -52,6 +84,89 @@ function mergeUserWords() {
   buildFormIndex();
   SEARCH_CACHE = null;
 }
+
+/* ================= 扩展词库：用到时才加载 ================= */
+/**
+ * 核心词库只有 5063 词，导入的 CET 词表里总有漏网的（unfruitful、词组……）。
+ * 这两份数据体积不小，首屏不加载：进「导入」页、或在词典里搜不到时才拉。
+ */
+function ensureExtra() {
+  if (extraLoaded) return Promise.resolve(true);
+  if (extraLoading) return extraLoading;
+  extraLoading = Promise.all([
+    fetch('data/phrases.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    fetch('data/ext.json').then((r) => (r.ok ? r.json() : null)).catch(() => null)
+  ]).then(([p, x]) => {
+    if (p && p.rows) {
+      p.rows.forEach((row) => PHRASES.set(row[0], { w: row[0], cn: row[1] || '' }));
+    }
+    if (x && x.rows) {
+      x.rows.forEach((row) => EXT.set(row[0], { w: row[0], ph: row[1] || '', m: row[2] || [], tag: row[3] || '' }));
+    }
+    extraLoaded = true;
+    EXTRA_INDEX = null;
+    return true;
+  }).catch(() => {
+    extraLoading = null;
+    return false;
+  });
+  return extraLoading;
+}
+
+function extraReady() {
+  return extraLoaded;
+}
+
+/** 词组优先于扩展词 */
+function lookupExtra(tok) {
+  const key = String(tok || '').toLowerCase().trim();
+  if (!key) return null;
+  if (PHRASES.has(key)) return { kind: 'phrase', w: key, cn: PHRASES.get(key).cn };
+  const e = EXT.get(key);
+  if (e) return { kind: 'ext', w: key, cn: glossOfM(e.m), ph: e.ph, m: e.m, tag: e.tag };
+  return null;
+}
+
+function glossOfM(m) {
+  return (m || []).map((r) => ((r[0] ? r[0] + ' ' : '') + (r[1] || ''))).join('；');
+}
+
+/** 扩展词库里的搜索：英文前缀优先，其次中文释义 */
+function searchExtra(q, limit) {
+  if (!extraLoaded) return [];
+  const key = String(q || '').trim().toLowerCase();
+  if (!key) return [];
+  const cap = limit || 8;
+  const out = [];
+  const cjk = /[\u4e00-\u9fff]/.test(key);
+
+  if (PHRASES.has(key)) out.push({ w: key, gloss: PHRASES.get(key).cn, tag: '词组', rank: 0 });
+  if (EXT.has(key)) out.push({ w: key, gloss: glossOfM(EXT.get(key).m), tag: '扩展', rank: 0, ph: EXT.get(key).ph });
+
+  if (!cjk && /^[a-z]/.test(key)) {
+    for (const e of EXT.values()) {
+      if (out.length >= cap) break;
+      if (e.w.startsWith(key) && e.w !== key) out.push({ w: e.w, gloss: glossOfM(e.m), tag: '扩展', rank: 2 });
+    }
+    for (const p of PHRASES.values()) {
+      if (out.length >= cap) break;
+      if (p.w.indexOf(key) >= 0 && p.w !== key) out.push({ w: p.w, gloss: p.cn, tag: '词组', rank: 3 });
+    }
+  } else if (cjk) {
+    if (!EXTRA_INDEX) {
+      EXTRA_INDEX = [];
+      for (const e of EXT.values()) EXTRA_INDEX.push({ w: e.w, g: glossOfM(e.m) });
+      for (const p of PHRASES.values()) EXTRA_INDEX.push({ w: p.w, g: p.cn });
+    }
+    for (const row of EXTRA_INDEX) {
+      if (out.length >= cap) break;
+      const idx = row.g.indexOf(key);
+      if (idx >= 0) out.push({ w: row.w, gloss: row.g, tag: '扩展', rank: idx === 0 ? 1 : 4 });
+    }
+  }
+  return out;
+}
+
 
 /** 用词库自带的 xf（变形表）与 fam（词族）建反查索引 */
 function buildFormIndex() {
@@ -111,6 +226,9 @@ function lexLabel(e) {
   if (!e) return '';
   if (e.src === 'import') return '自建词条';
   if (e.src === 'fam') return '词族' + (e.from ? ' · 来自 ' + e.from : '');
+  if (e.src === 'phrase') return '高频词组';
+  if (e.src === 'ext') return '扩展词库';
+  if (e.src === 'func') return '功能词';
   return (e.f === 1 || e.f === undefined ? '必背 · 高频' : '认知 · 中低频');
 }
 
@@ -264,7 +382,9 @@ function tokenize(text) {
     if (!c) continue;
     const parts = c.split(' ').filter((p) => p && p !== 'n' && p !== 'v' && !POS_WORDS.has(p));
     if (!parts.length) continue;
-    if (parts.length <= 3) push(parts.join(' '));
+    const joined = parts.join(' ');
+    // 3 词以内整体作为一个词条；更长的只有词组库确实收了才整体保留，否则拆词
+    if (parts.length <= 3 || PHRASES.has(joined) || EXT.has(joined)) push(joined);
     else parts.forEach(push);
     if (out.length > 400) break;
   }
@@ -312,6 +432,16 @@ function familyEntries(base) {
   return out;
 }
 
+/** 从一行里抠出中文释义：粘贴时常用「单词 + 释义」的格式，别把它丢掉 */
+function chineseOf(raw) {
+  const body = String(raw || '')
+    .replace(/\/([^\/]{0,40})\//g, ' ')
+    .replace(/[（(【\[][^）)】\]]{0,80}[）)】\]]/g, ' ');
+  const runs = body.match(/[\u4e00-\u9fff]+/g) || [];
+  const cn = runs.join('、').replace(/^[、，,]+|[、，,]+$/g, '');
+  return cn.length >= 2 && cn.length <= 40 ? cn : '';
+}
+
 function buildReview(text) {
   const items = [];
   const used = new Set();
@@ -323,18 +453,36 @@ function buildReview(text) {
     return true;
   };
 
-  for (const t of tokenize(text)) {
-    const r = resolveToken(t);
-    if (r.kind === 'unknown') {
-      put({ kind: 'unknown', w: r.key, checked: true, note: '', from: '', pos: '', cn: '' });
-      continue;
-    }
-    put({
-      kind: r.kind, w: r.base, checked: true,
-      from: r.kind === 'form' ? r.key : '', pos: '', cn: ''
-    });
-    for (const f of familyEntries(r.base)) {
-      put({ kind: 'fam', w: f.w, checked: true, from: r.base, pos: f.pos, cn: f.cn, note: '' });
+  // 逐行解析，同一行的中文释义留给这一行的词（词库和扩展库都没收录时兜底）
+  const lines = String(text || '').split(/[\n\r]+/);
+  for (const line of lines) {
+    const tokens = tokenize(line);
+    if (!tokens.length) continue;
+    const ownCn = chineseOf(line);
+    for (const t of tokens) {
+      const r = resolveToken(t);
+      if (r.kind === 'unknown') {
+        // 核心词库没命中：再看词组表与扩展词库，拿到现成释义就不必手填
+        const ex = lookupExtra(t);
+        if (ex) {
+          put({
+            kind: ex.kind, w: ex.w, checked: true, from: '', note: '',
+            pos: '', cn: ex.cn, ph: ex.ph || '', m: ex.m || null
+          });
+        } else {
+          put({
+            kind: 'unknown', w: r.key, checked: true, note: ownCn, from: '', pos: '', cn: ''
+          });
+        }
+        continue;
+      }
+      put({
+        kind: r.kind, w: r.base, checked: true,
+        from: r.kind === 'form' ? r.key : '', pos: '', cn: ''
+      });
+      for (const f of familyEntries(r.base)) {
+        put({ kind: 'fam', w: f.w, checked: true, from: r.base, pos: f.pos, cn: f.cn, note: '' });
+      }
     }
   }
   return items;

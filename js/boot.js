@@ -70,6 +70,8 @@ function bindToday() {
   $('btn-import').addEventListener('click', () => {
     resetImport();
     showPage('import');
+    // 进页面就把词组表与扩展词库拉下来，粘贴完立刻能解析
+    ensureExtra();
   });
 
   const examCard = $('exam-card');
@@ -261,7 +263,11 @@ function bindMine() {
   });
 
   $('btn-about').addEventListener('click', () => {
-    alert('识词 · 网页版 ' + APP_VER + '\n\n词库 ECDICT（MIT License）\n例句 Tatoeba（CC-BY 2.0 FR）\n\n进度只保存在本机浏览器，不上传任何服务器。\n通过 WebDAV 备份时可与鸿蒙端共用同一份 shiy-backup.json。');
+    alert('识词 · 网页版 ' + APP_VER + '\n\n词库 ECDICT（MIT License）：核心 ' + (S.order.length) + ' 词，' +
+      '扩展 ' + EXT.size + ' 词，词组 ' + PHRASES.size + ' 条\n' +
+      '例句 Tatoeba（CC-BY 2.0 FR）\n\n' +
+      '进度只保存在本机浏览器，不上传任何服务器。\n' +
+      '通过 WebDAV 备份时可与鸿蒙端共用同一份 shiy-backup.json。');
   });
 
   const verEl = $('app-ver');

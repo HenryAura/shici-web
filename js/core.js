@@ -5,7 +5,7 @@
 const DAY = 86400000;
 const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
-const APP_VER = 'v2.5';
+const APP_VER = 'v2.6';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark

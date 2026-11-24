@@ -166,7 +166,8 @@ function clearDictHistory() {
 }
 
 function renderDict() {
-  $('dict-count').textContent = 'ECDICT · ' + S.dict.size + ' 词';
+  $('dict-count').textContent = 'ECDICT · ' + S.dict.size + ' 词'
+    + (extraReady() ? ' · 词组 ' + PHRASES.size : '');
 
   const hist = dictHistory();
   const wrap = $('dict-hist-wrap');
@@ -193,20 +194,22 @@ function renderDict() {
   }
 
   const res = searchDict(dictQuery, 40);
+  const extra = searchExtra(dictQuery, 6).filter((x) => !S.dict.has(x.w));
   const out = $('dict-results');
   out.innerHTML = '';
   $('dict-suggests').hidden = true;
 
-  if (!res.length) {
+  if (!res.length && !extra.length) {
     const p = document.createElement('p');
     p.className = 'hint';
     p.style.padding = '12px 2px';
-    p.textContent = '没有匹配的结果，换个关键词试试';
+    p.textContent = extraReady() ? '没有匹配的结果，换个关键词试试' : '正在加载扩展词库…';
     out.appendChild(p);
+    if (!extraReady()) ensureExtra().then(() => { if (dictQuery) renderDict(); });
     return;
   }
 
-  res.forEach((r) => {
+  const row = (r, isExtra) => {
     const b = document.createElement('button');
     b.className = 'result-item';
     const w = document.createElement('span');
@@ -217,7 +220,12 @@ function renderDict() {
     g.textContent = r.gloss;
     const lv = document.createElement('span');
     lv.className = 'r-lv';
-    lv.textContent = r.lv === 2 ? '认知' : '必背';
+    if (isExtra) {
+      lv.textContent = r.tag || '扩展';
+      lv.classList.add('ext');
+    } else {
+      lv.textContent = r.lv === 2 ? '认知' : '必背';
+    }
     b.appendChild(w);
     if (r.via) {
       const via = document.createElement('i');
@@ -227,9 +235,19 @@ function renderDict() {
     }
     b.appendChild(g);
     b.appendChild(lv);
-    b.addEventListener('click', () => openDetail(r.w));
+    b.addEventListener('click', () => {
+      if (isExtra) {
+        addFromExtra(r.w, r.tag);
+        if (S.dict.has(r.w)) openDetail(r.w);
+      } else {
+        openDetail(r.w);
+      }
+    });
     out.appendChild(b);
-  });
+  };
+
+  res.forEach((r) => row(r, false));
+  extra.forEach((r) => row(r, true));
 }
 
 function doSearch(commit) {
@@ -238,6 +256,8 @@ function doSearch(commit) {
   $('dict-clear').hidden = !q;
   if (commit) pushDictHistory(q);
   renderDict();
+  // 第一次搜不到时顺手把扩展词库拉下来，再补一次结果
+  if (!extraReady()) ensureExtra().then(() => { if (dictQuery) renderDict(); });
 }
 
 function onDictInput() {
@@ -252,6 +272,24 @@ function onDictInput() {
 /* ================= 词条详情 ================= */
 let detailWord = '';
 let detailFrom = 'dict';
+
+/** 把扩展词库/词组里的词收进本地词库，之后离线可查、可参与复习 */
+function addFromExtra(w, tag) {
+  const ex = lookupExtra(w);
+  if (!ex) { toast('没找到这个词'); return false; }
+  if (S.dict.has(w)) { openDetail(w); return false; }
+  const e = ex.kind === 'phrase'
+    ? { w: w, ph: '', m: [['', ex.cn]], fam: [], en: [], f: 0, lv: 0, src: 'phrase' }
+    : { w: w, ph: ex.ph || '', m: (ex.m && ex.m.length ? ex.m : [['', ex.cn]]), fam: [], en: [], f: 0, lv: 0, src: 'ext' };
+  S.user[w] = e;
+  S.dict.set(w, e);
+  S.order = [w].concat(S.order);
+  SEARCH_CACHE = null;
+  saveStore();
+  toast('已加入词库');
+  if (curPage === 'dict') renderDict();
+  return true;
+}
 
 function openDetail(w) {
   const e = entryOf(w);
@@ -881,8 +919,13 @@ async function wdRestore(btn) {
 }
 
 /* ================= 导入 ================= */
+function cnOfM(m) {
+  return (m || []).map((r) => ((r[0] ? r[0] + ' ' : '') + (r[1] || ''))).join('；');
+}
+
 function glossOfItem(it) {
   if (it.kind === 'fam') return [it.pos, it.cn].filter(Boolean).join(' ');
+  if (it.kind === 'phrase' || it.kind === 'ext') return it.cn || '';
   if (it.kind === 'unknown') return it.note || '';
   return glossOf(it.w);
 }
@@ -891,6 +934,8 @@ const GROUPS = [
   { k: 'dict', t: '已在词库', cls: 'ok' },
   { k: 'form', t: '变形还原', cls: 'acc' },
   { k: 'fam', t: '词族扩展', cls: 'warn' },
+  { k: 'phrase', t: '词组收录', cls: 'ok' },
+  { k: 'ext', t: '扩展词库', cls: 'acc' },
   { k: 'unknown', t: '未收录', cls: 'bad' }
 ];
 
@@ -903,7 +948,7 @@ function renderReview() {
 
   $('import-summary').textContent = '共 ' + S.review.length + ' 项';
   $('import-hint').textContent = stat.map((x) => x.d.t + ' ' + x.items.length).join(' · ')
-    + '。过去式、复数、比较级会自动还原成原形，释义以本地词库为准。';
+    + '。过去式、复数、比较级会自动还原成原形；词组与核心词库外的词会自动补上释义。';
 
   for (const g of stat) {
     const d = g.d;
@@ -1013,6 +1058,18 @@ function parseInput() {
     toast('先粘贴几个单词');
     return;
   }
+  // 词组表与扩展词库是按需加载的，第一次解析前先等它到位
+  if (!extraReady()) {
+    $('import-summary').textContent = '正在加载词组与扩展词库…';
+    $('import-result').hidden = false;
+    ensureExtra().then(doParse);
+    return;
+  }
+  doParse();
+}
+
+function doParse() {
+  const text = $('import-input').value;
   S.review = buildReview(text);
   if (!S.review.length) {
     toast('没识别出英文单词');
@@ -1030,6 +1087,13 @@ function makeEntry(it) {
     const m = [];
     if (it.cn) m.push([it.pos || '', it.cn]);
     return { w: it.w, ph: '', m: m, fam: [], en: [], f: 0, lv: 0, src: 'fam', from: it.from || '' };
+  }
+  if (it.kind === 'phrase') {
+    return { w: it.w, ph: '', m: [['', it.cn || '']], fam: [], en: [], f: 0, lv: 0, src: 'phrase' };
+  }
+  if (it.kind === 'ext') {
+    const m = (it.m && it.m.length) ? it.m : (it.cn ? [['', it.cn]] : []);
+    return { w: it.w, ph: it.ph || '', m: m, fam: [], en: [], f: 0, lv: 0, src: 'ext' };
   }
   const m = [];
   if (it.note) m.push(['', it.note]);

@@ -619,6 +619,13 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
   white-space: nowrap;
 }
 .result-item .r-lv { font-size: 11px; color: var(--ink-3); flex: 0 0 auto; }
+.result-item .r-lv.ext {
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: var(--fill-2);
+  color: var(--ink-2);
+  font-size: 10px;
+}
 .result-item .r-via {
   font-style: normal;
   font-size: 10px;
