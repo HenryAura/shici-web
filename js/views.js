@@ -402,6 +402,37 @@ function renderReport() {
 
   $('rep-wb-n').textContent = agg.wb + ' 个';
 
+  // 薄弱词：错误权重高于模糊，正确次数抵扣
+  const weak = [];
+  for (const w in S.progress) {
+    if (!S.dict.has(w)) continue;
+    const p = S.progress[w];
+    const score = (p.wrong || 0) * 2 + (p.partial || 0) - (p.full || 0);
+    if (score > 0) weak.push({ w: w, score: score, wrong: p.wrong || 0, partial: p.partial || 0 });
+  }
+  weak.sort((a, b) => b.score - a.score);
+  const wl = $('rep-weak');
+  wl.innerHTML = '';
+  if (!weak.length) {
+    const p = document.createElement('p');
+    p.className = 'empty';
+    p.textContent = agg.asked ? '暂无薄弱词，保持住' : '做过几轮练习后，这里会列出该多看的词';
+    wl.appendChild(p);
+  } else {
+    weak.slice(0, 10).forEach((x) => {
+      const b = document.createElement('button');
+      b.className = 'wk';
+      const nb = document.createElement('b');
+      nb.textContent = x.w;
+      const tag = document.createElement('i');
+      tag.textContent = '错 ' + (x.wrong || x.partial);
+      b.appendChild(nb);
+      b.appendChild(tag);
+      b.addEventListener('click', () => openDetail(x.w));
+      wl.appendChild(b);
+    });
+  }
+
   // 最近练习
   const recs = [];
   for (const k in S.hist) {
