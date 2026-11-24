@@ -8,10 +8,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="识词">
 <meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="light dark">
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=20261124b">
 </head>
 <body>
 
@@ -35,6 +36,27 @@
       <div class="hero-num" id="hero-num">0</div>
       <p class="hero-sub" id="hero-sub">今天没有待学的词</p>
     </div>
+
+    <button class="exam-card" id="exam-card" hidden>
+      <div class="exam-ring">
+        <svg viewBox="0 0 48 48" width="52" height="52" aria-hidden="true">
+          <circle cx="24" cy="24" r="20" fill="none" stroke="var(--sep)" stroke-width="5"/>
+          <circle id="exam-arc" cx="24" cy="24" r="20" fill="none" stroke="var(--warn)" stroke-width="5"
+                  stroke-linecap="round" stroke-dasharray="125.7" stroke-dashoffset="125.7"
+                  transform="rotate(-90 24 24)"/>
+        </svg>
+        <span id="exam-pct">0%</span>
+      </div>
+      <div class="exam-body">
+        <div class="exam-top">
+          <b id="exam-days">—</b>
+          <i id="exam-date-label"></i>
+        </div>
+        <p class="exam-kicker" id="exam-kicker">距考试 · 必背词覆盖</p>
+        <p class="exam-plan" id="exam-plan"></p>
+      </div>
+      <span class="chev">›</span>
+    </button>
 
     <div class="stat-row">
       <div class="stat"><b id="st-done">0</b><span>今日已答</span></div>
@@ -230,6 +252,18 @@
         </div>
       </div>
       <div class="row between">
+        <span class="row-title">考试日期</span>
+        <div class="row-right">
+          <input type="date" id="set-exam" class="date-input">
+          <button class="icon-sm" id="btn-exam-clear" aria-label="清除考试日期" hidden>×</button>
+        </div>
+      </div>
+      <div class="row between">
+        <span class="row-title">按考试倒排加量</span>
+        <button class="switch" id="sw-exam-auto" role="switch" aria-checked="true"><i></i></button>
+      </div>
+      <p class="hint" id="exam-hint">设置考试日期后，每天的新词量会按剩余天数自动倒排。</p>
+      <div class="row between">
         <span class="row-title">默认练习</span>
         <div class="seg small" id="seg-mode">
           <button data-v="flash">闪卡</button>
@@ -326,7 +360,11 @@
       <p class="group-title">关于</p>
       <button class="row link" id="btn-about">
         <span class="row-title">关于识词</span>
-        <span class="row-val">v2.3 <span class="chev">›</span></span>
+        <span class="row-val"><span id="app-ver">v2.5</span> <span class="chev">›</span></span>
+      </button>
+      <button class="row link" id="btn-update">
+        <span class="row-title">检查更新</span>
+        <span class="row-val" id="upd-state">清除缓存并重新载入 <span class="chev">›</span></span>
       </button>
       <p class="hint foot-hint">词库 ECDICT（MIT）· 例句 Tatoeba（CC-BY）<br>进度只存在本机，不上传任何服务器。</p>
     </div>
@@ -510,10 +548,10 @@
 
 <input type="file" id="file-import" accept=".json,application/json" hidden>
 
-<script src="js/core.js"></script>
-<script src="js/dict.js"></script>
-<script src="js/study.js"></script>
-<script src="js/views.js"></script>
-<script src="js/boot.js"></script>
+<script src="js/core.js?v=20261124b"></script>
+<script src="js/dict.js?v=20261124b"></script>
+<script src="js/study.js?v=20261124b"></script>
+<script src="js/views.js?v=20261124b"></script>
+<script src="js/boot.js?v=20261124b"></script>
 </body>
 </html>

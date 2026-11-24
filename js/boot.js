@@ -71,6 +71,17 @@ function bindToday() {
     resetImport();
     showPage('import');
   });
+
+  const examCard = $('exam-card');
+  if (examCard) {
+    examCard.addEventListener('click', () => {
+      showPage('mine');
+      setTimeout(() => {
+        const row = $('set-exam') && $('set-exam').closest('.row');
+        if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 60);
+    });
+  }
 }
 
 function bindStudy() {
@@ -167,8 +178,35 @@ function bindMine() {
 
   $('set-new').addEventListener('input', () => {
     S.settings.newPerDay = clamp(Number($('set-new').value), 5, 100);
-    $('set-new-val').textContent = String(S.settings.newPerDay);
+    renderNewVal();
     saveStore();
+    renderExam();
+  });
+
+  $('set-exam').addEventListener('change', () => {
+    const v = $('set-exam').value;
+    S.settings.examDate = /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+    saveStore();
+    renderMine();
+    renderToday();
+    toast(S.settings.examDate ? '已按考试日期倒排每日词量' : '已清除考试日期');
+  });
+
+  $('btn-exam-clear').addEventListener('click', () => {
+    S.settings.examDate = '';
+    $('set-exam').value = '';
+    saveStore();
+    renderMine();
+    renderToday();
+    toast('已清除考试日期');
+  });
+
+  $('sw-exam-auto').addEventListener('click', () => {
+    S.settings.examAuto = !S.settings.examAuto;
+    $('sw-exam-auto').setAttribute('aria-checked', S.settings.examAuto ? 'true' : 'false');
+    saveStore();
+    renderMine();
+    renderToday();
   });
 
   $('set-rate').addEventListener('input', () => {
@@ -223,7 +261,26 @@ function bindMine() {
   });
 
   $('btn-about').addEventListener('click', () => {
-    alert('识词 · 网页版\n\n词库 ECDICT（MIT License）\n例句 Tatoeba（CC-BY 2.0 FR）\n\n进度只保存在本机浏览器，不上传任何服务器。\n通过 WebDAV 备份时可与鸿蒙端共用同一份 shiy-backup.json。');
+    alert('识词 · 网页版 ' + APP_VER + '\n\n词库 ECDICT（MIT License）\n例句 Tatoeba（CC-BY 2.0 FR）\n\n进度只保存在本机浏览器，不上传任何服务器。\n通过 WebDAV 备份时可与鸿蒙端共用同一份 shiy-backup.json。');
+  });
+
+  const verEl = $('app-ver');
+  if (verEl) verEl.textContent = APP_VER;
+
+  $('btn-update').addEventListener('click', async () => {
+    const st = $('upd-state');
+    st.textContent = '正在更新…';
+    try {
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.update().catch(() => {})));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+      }
+    } catch (e) { /* 忽略，直接重载 */ }
+    setTimeout(() => location.reload(), 300);
   });
 }
 

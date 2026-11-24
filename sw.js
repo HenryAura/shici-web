@@ -1,4 +1,4 @@
-const CACHE = 'shici-v4';
+const CACHE = 'shici-v6';
 const CORE = [
   './',
   './index.html',
@@ -48,8 +48,9 @@ self.addEventListener('fetch', (e) => {
   }
 
   // 应用外壳：网络优先，断网回退缓存 —— 避免更新后仍跑旧 HTML 引用已删除的脚本
+  // cache:'reload' 绕过浏览器的 HTTP 缓存与 iOS WebView 快照，确保拿到最新外壳
   e.respondWith(
-    fetch(req).then((res) => {
+    fetch(new Request(req, { cache: 'reload' })).then((res) => {
       if (res && res.ok) {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(req, copy));

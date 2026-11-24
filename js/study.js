@@ -27,7 +27,7 @@ function buildSession(kind, mode) {
     }
     due.sort((a, b) => S.progress[a].dueAt - S.progress[b].dueAt);
     due.forEach((w) => items.push({ w: w, tag: 'review' }));
-    freshList(S.settings.newPerDay).forEach((w) => items.push({ w: w, tag: 'new' }));
+    freshList(effectiveNewPerDay()).forEach((w) => items.push({ w: w, tag: 'new' }));
   }
 
   S.session = {

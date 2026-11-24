@@ -18,7 +18,7 @@ function todayStat() {
   const h = S.hist[dayKey()];
   const done = h ? h.asked : 0;
   const due = dueWords();
-  const fresh = freshList(S.settings.newPerDay);
+  const fresh = freshList(effectiveNewPerDay());
   return { done: done, due: due.length, newLeft: fresh.length, total: done + due.length + fresh.length, dueList: due, freshList: fresh };
 }
 
@@ -35,6 +35,8 @@ function renderToday() {
   $('st-done').textContent = String(st.done);
   $('st-new').textContent = String(st.newLeft);
   $('st-streak').textContent = String(streak());
+
+  renderExam();
 
   const pct = st.total > 0 ? Math.round((st.done / st.total) * 100) : 0;
   $('progress-text').textContent = st.done + ' / ' + st.total;
@@ -77,6 +79,41 @@ function renderToday() {
     : (st.done > 0 ? '继续练习' : '开始' + MODE_NAME[S.settings.mode]);
 
   renderModeSeg();
+}
+
+/** 考试倒计时卡：距考试天数 + 必背词覆盖率 + 倒排建议 */
+function renderExam() {
+  const card = $('exam-card');
+  if (!card) return;
+  const p = examPlan();
+  if (!p) { card.hidden = true; return; }
+  card.hidden = false;
+
+  const dt = new Date(S.settings.examDate + 'T00:00:00');
+  const wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  $('exam-days').textContent = p.days === 0 ? '今天' : p.days + ' 天';
+  $('exam-date-label').textContent = (dt.getMonth() + 1) + '月' + dt.getDate() + '日 · ' + wd[dt.getDay()];
+  $('exam-pct').textContent = p.pct + '%';
+
+  const C = 2 * Math.PI * 20;
+  const arc = $('exam-arc');
+  arc.setAttribute('stroke-dasharray', C.toFixed(1));
+  arc.setAttribute('stroke-dashoffset', (C * (1 - p.pct / 100)).toFixed(1));
+
+  let txt;
+  const eff = effectiveNewPerDay();
+  const boosted = S.settings.examAuto && eff > S.settings.newPerDay;
+  $('exam-kicker').textContent = boosted ? '距考试 · 今日新词 ' + eff : '距考试 · 必背词覆盖';
+
+  if (p.days === 0) {
+    txt = '今天考试 · 全力以赴';
+  } else if (p.remain === 0) {
+    txt = '必背词已全部掌握 · 保持手感';
+  } else {
+    txt = '剩余 ' + p.remain + ' 词 · 建议每天 ' + p.suggest + ' 词';
+    if (!S.settings.examAuto) txt += ' · 未自动加量';
+  }
+  $('exam-plan').textContent = txt;
 }
 
 function renderModeSeg() {
@@ -182,6 +219,12 @@ function renderDict() {
     lv.className = 'r-lv';
     lv.textContent = r.lv === 2 ? '认知' : '必背';
     b.appendChild(w);
+    if (r.via) {
+      const via = document.createElement('i');
+      via.className = 'r-via';
+      via.textContent = r.via + ' 的原形';
+      b.appendChild(via);
+    }
     b.appendChild(g);
     b.appendChild(lv);
     b.addEventListener('click', () => openDetail(r.w));
@@ -514,13 +557,36 @@ function renderDone(session, newly) {
 }
 
 /* ================= 我的 ================= */
+/** 每日新词数值：自动加量时显示「设定值 → 实际值」 */
+function renderNewVal() {
+  const base = S.settings.newPerDay;
+  const eff = effectiveNewPerDay();
+  $('set-new-val').textContent = eff > base ? base + '→' + eff : String(base);
+  $('set-new-val').title = eff > base ? '按考试倒排已自动加量' : '';
+}
+
 function renderMine() {
   const s = S.settings;
   $('nick').value = S.nick;
   $('avatar').textContent = (S.nick || '识').slice(0, 1);
 
   $('set-new').value = String(s.newPerDay);
-  $('set-new-val').textContent = String(s.newPerDay);
+  renderNewVal();
+  $('set-exam').value = s.examDate || '';
+  $('btn-exam-clear').hidden = !s.examDate;
+  $('sw-exam-auto').setAttribute('aria-checked', s.examAuto ? 'true' : 'false');
+
+  const ep = examPlan();
+  const eh = $('exam-hint');
+  if (!s.examDate) {
+    eh.textContent = '设置考试日期后，每天的新词量会按剩余天数自动倒排。';
+  } else if (!ep) {
+    eh.textContent = '这个日期已经过去了，换一个日期或点 × 清除。';
+  } else {
+    eh.textContent = '距考试 ' + ep.days + ' 天 · 必背 ' + ep.done + '/' + ep.total +
+      (ep.days > 0 ? ' · 每天 ' + ep.suggest + ' 词' : '') +
+      (s.examAuto ? '（自动）' : '（未自动）');
+  }
   $('set-rate').value = String(s.rate);
   $('set-rate-val').textContent = Number(s.rate).toFixed(2);
 

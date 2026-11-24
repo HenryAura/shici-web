@@ -5,6 +5,7 @@
 const DAY = 86400000;
 const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
+const APP_VER = 'v2.5';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -16,7 +17,9 @@ const DEFAULT_SETTINGS = {
   voice: '',
   rate: 0.9,
   reduceMotion: false,
-  keepAwake: true
+  keepAwake: true,
+  examDate: '',         // 考试日期 YYYY-MM-DD，空串=未设置
+  examAuto: true        // 按考试倒排自动加量
 };
 
 const S = {
@@ -115,6 +118,8 @@ function normalizeSettings() {
   if (['random', 'seq'].indexOf(s.order) < 0) s.order = 'random';
   if (['all', 'core', 'rare'].indexOf(s.scope) < 0) s.scope = 'all';
   if (['flash', 'choice', 'spell', 'listen'].indexOf(s.mode) < 0) s.mode = 'flash';
+  if (typeof s.examDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.examDate)) s.examDate = '';
+  s.examAuto = s.examAuto !== false;
 }
 
 /* ================= 日期 ================= */
@@ -248,20 +253,89 @@ function streak() {
   return n;
 }
 
+/* ================= 考试倒排 ================= */
+/** 距考试天数（自然日；考试当天 = 0；未设置或已过期返回 null） */
+function daysToExam() {
+  const d = S.settings.examDate;
+  if (!d) return null;
+  const end = new Date(d + 'T00:00:00').getTime();
+  if (isNaN(end)) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const n = Math.floor((end - today.getTime()) / DAY);
+  return n < 0 ? null : n;
+}
+
+/** 必背词（f 为 1 或无分级）的掌握情况，口径与鸿蒙端一致 */
+function coreStat() {
+  let total = 0;
+  let done = 0;
+  for (const w of S.order) {
+    const e = S.dict.get(w);
+    if (!e || e.f === 2) continue; // 2 = 认知词，不计入必背
+    total++;
+    const p = S.progress[w];
+    if (p && (p.full || 0) >= 2 && !S.wb[w]) done++;
+  }
+  return { total: total, done: done, remain: Math.max(0, total - done) };
+}
+
+/** 考试倒排方案；未设日期返回 null */
+function examPlan() {
+  const days = daysToExam();
+  if (days === null) return null;
+  const cs = coreStat();
+  const perDay = days > 0 ? Math.min(100, Math.ceil(cs.remain / days)) : 0;
+  return {
+    days: days,
+    total: cs.total,
+    done: cs.done,
+    remain: cs.remain,
+    suggest: perDay,
+    pct: cs.total ? Math.round((cs.done / cs.total) * 100) : 0
+  };
+}
+
+/** 今日实际新词量：设了考试日期且开启自动，就按倒排建议加量（不减少、不超过 100） */
+function effectiveNewPerDay() {
+  const base = S.settings.newPerDay;
+  if (!S.settings.examAuto) return base;
+  const p = examPlan();
+  if (!p || p.days <= 0 || p.suggest <= 0) return base;
+  return Math.max(base, Math.min(100, p.suggest));
+}
+
 /* ================= 设置应用 ================= */
+function systemDark() {
+  try { return matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) { return false; }
+}
+
+function isDarkNow() {
+  const t = S.settings.theme;
+  return t === 'dark' || (t === 'auto' && systemDark());
+}
+
 function applySettings() {
   const s = S.settings;
   const root = document.documentElement;
-  if (s.theme === 'auto') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', s.theme);
+
+  // auto 时也写入属性，方便调试；CSS 里没有 [data-theme='auto'] 规则，
+  // 因此会自然回落到 :root 的 prefers-color-scheme 媒体查询
+  root.setAttribute('data-theme', s.theme);
+  // color-scheme 影响表单控件、滚动条和 iOS 的默认 UA 配色
+  root.style.colorScheme = s.theme === 'auto' ? 'light dark' : s.theme;
+
   root.style.setProperty('--word-size', s.wordSize + 'px');
   document.body.classList.toggle('reduce-motion', !!s.reduceMotion);
 
+  const dark = isDarkNow();
+
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) {
-    const dark = s.theme === 'dark' || (s.theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
-    meta.setAttribute('content', dark ? '#0b0b0d' : '#ffffff');
-  }
+  if (meta) meta.setAttribute('content', dark ? '#0b0b0d' : '#ffffff');
+
+  // iOS 主屏运行时状态栏配色：深色黑底、浅色白底
+  const bar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+  if (bar) bar.setAttribute('content', dark ? 'black' : 'default');
 }
 
 function initTheme() {

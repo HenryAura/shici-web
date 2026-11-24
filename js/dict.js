@@ -178,29 +178,35 @@ function buildSearchCache() {
   return SEARCH_CACHE;
 }
 
-/** 英文前缀优先，其次中文释义；中文按「首义命中 > 其他义命中」排序 */
+/** 英文前缀优先，其次变形还原，其次中文释义；中文按「首义命中 > 其他义命中」排序 */
 function searchDict(q, limit) {
   const key = String(q || '').trim().toLowerCase();
   if (!key) return [];
   const cap = limit || 30;
   const out = [];
   const seen = new Set();
-  const push = (e, rank) => {
+  const push = (e, rank, via) => {
     if (!e || seen.has(e.w)) return;
     seen.add(e.w);
-    out.push({ w: e.w, gloss: shortDef(e.w), lv: e.f, rank: rank });
+    out.push({ w: e.w, gloss: shortDef(e.w), lv: e.f, rank: rank, via: via || '' });
   };
 
   // 1) 精确
   push(S.dict.get(key), 0);
-  // 2) 英文前缀
+
+  // 2) 变形还原：went -> go、abandoned -> abandon、better -> good
+  //    （输入的是过去式/复数/比较级时，直接给出词典里的原形）
+  const rt = resolveToken(key);
+  if (rt.kind === 'form' && rt.base !== key) push(S.dict.get(rt.base), 1, key);
+
+  // 3) 英文前缀
   if (/^[a-z]/.test(key)) {
     for (const e of S.dict.values()) {
-      if (e.w.toLowerCase().startsWith(key)) push(e, 1);
+      if (e.w.toLowerCase().startsWith(key)) push(e, 2);
       if (out.length > cap * 2) break;
     }
   }
-  // 3) 中文释义 / 英文子串
+  // 4) 中文释义 / 英文子串
   if (out.length < cap * 2) {
     const cache = buildSearchCache();
     const raw = q.trim();
@@ -210,16 +216,16 @@ function searchDict(q, limit) {
       const idx = row.g.indexOf(raw);
       if (idx >= 0) {
         seen.add(row.w);
-        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: idx === 0 ? 2 : 3, pos: idx });
+        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: idx === 0 ? 3 : 4, pos: idx, via: '' });
       } else if (/^[a-z]/.test(key) && row.w.toLowerCase().indexOf(key) >= 0) {
         seen.add(row.w);
-        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: 5, pos: 999 });
+        out.push({ w: row.w, gloss: shortDef(row.w), lv: row.lv, rank: 5, pos: 999, via: '' });
       }
     }
   }
   out.sort((a, b) =>
     a.rank - b.rank
-    || (a.rank >= 2 ? (a.lv || 1) - (b.lv || 1) : 0)
+    || (a.rank >= 3 ? (a.lv || 1) - (b.lv || 1) : 0)
     || (a.pos || 0) - (b.pos || 0)
     || a.w.length - b.w.length
     || a.w.localeCompare(b.w));
