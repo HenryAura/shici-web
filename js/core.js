@@ -7,7 +7,7 @@ const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
 const NEW_MIN = 5;    // 每日新词下限
 const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
-const APP_VER = 'v2.9';
+const APP_VER = 'v3.0';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -120,7 +120,7 @@ function normalizeSettings() {
   if (['auto', 'light', 'dark'].indexOf(s.theme) < 0) s.theme = 'auto';
   if (['random', 'seq'].indexOf(s.order) < 0) s.order = 'random';
   if (['all', 'core', 'rare'].indexOf(s.scope) < 0) s.scope = 'all';
-  if (['flash', 'choice', 'spell', 'listen'].indexOf(s.mode) < 0) s.mode = 'flash';
+  if (['flash', 'choice', 'write', 'spell', 'listen'].indexOf(s.mode) < 0) s.mode = 'flash';
   if (typeof s.examDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.examDate)) s.examDate = '';
   s.examAuto = s.examAuto !== false;
 }

@@ -12,11 +12,18 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="icons/icon-1024.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=20261124c">
+<link rel="stylesheet" href="style.css?v=20261124e">
 </head>
 <body>
 
-<div id="boot" class="boot"><div class="spinner"></div><p>正在加载词库…</p></div>
+<div id="boot" class="boot">
+  <div class="boot-in">
+    <div class="boot-mark">识</div>
+    <p class="boot-name">识词</p>
+    <p class="boot-tip">每天一点，词就记住了</p>
+  </div>
+  <div class="boot-line"><i></i></div>
+</div>
 
 <main id="app" hidden>
 
@@ -28,77 +35,69 @@
         <h1>今天</h1>
       </div>
       <div class="head-acts">
+        <button class="chip" id="btn-wb" hidden>错词 <b id="wb-count">0</b></button>
         <button class="chip" id="btn-import">导入</button>
       </div>
     </header>
 
-    <div class="hero">
-      <div class="hero-num" id="hero-num">0</div>
-      <p class="hero-sub" id="hero-sub">今天没有待学的词</p>
+    <div class="today-card">
+      <div class="tc-top">
+        <div class="tc-lead">
+          <div class="tc-num" id="hero-num">0</div>
+          <p class="tc-sub" id="hero-sub">今天没有待学的词</p>
+        </div>
+        <div class="tc-ring">
+          <svg viewBox="0 0 44 44" width="62" height="62" aria-hidden="true">
+            <circle cx="22" cy="22" r="18" fill="none" stroke="var(--fill-2)" stroke-width="4.5"/>
+            <circle id="tc-arc" cx="22" cy="22" r="18" fill="none" stroke="var(--acc)" stroke-width="4.5"
+                    stroke-linecap="round" stroke-dasharray="113.1" stroke-dashoffset="113.1"
+                    transform="rotate(-90 22 22)"/>
+          </svg>
+          <span id="tc-pct">0%</span>
+        </div>
+      </div>
+      <div class="tc-bar"><i id="progress-fill"></i></div>
+      <div class="tc-foot">
+        <span id="progress-text">0 / 0 已答</span>
+        <span class="heat" id="heat"></span>
+        <span id="st-streak">连续 0 天</span>
+      </div>
     </div>
 
-    <button class="exam-card" id="exam-card" hidden>
-      <div class="exam-ring">
-        <svg viewBox="0 0 48 48" width="52" height="52" aria-hidden="true">
-          <circle cx="24" cy="24" r="20" fill="none" stroke="var(--sep)" stroke-width="5"/>
-          <circle id="exam-arc" cx="24" cy="24" r="20" fill="none" stroke="var(--warn)" stroke-width="5"
-                  stroke-linecap="round" stroke-dasharray="125.7" stroke-dashoffset="125.7"
-                  transform="rotate(-90 24 24)"/>
-        </svg>
-        <span id="exam-pct">0%</span>
-      </div>
-      <div class="exam-body">
-        <div class="exam-top">
+    <button class="exam-row" id="exam-card" hidden>
+      <span class="exam-flag"></span>
+      <span class="exam-body">
+        <span class="exam-top">
           <b id="exam-days">—</b>
           <i id="exam-date-label"></i>
-        </div>
-        <p class="exam-kicker" id="exam-kicker">距考试 · 必背词覆盖</p>
-        <p class="exam-plan" id="exam-plan"></p>
-      </div>
+        </span>
+        <em class="exam-plan" id="exam-plan"></em>
+      </span>
       <span class="chev">›</span>
     </button>
 
-    <div class="stat-row">
-      <div class="stat"><b id="st-done">0</b><span>今日已答</span></div>
-      <div class="stat"><b id="st-new">0</b><span>待学新词</span></div>
-      <div class="stat"><b id="st-streak">0</b><span>连续天数</span></div>
-    </div>
-
-    <div class="group">
-      <div class="row between">
-        <span class="row-title">今日进度</span>
-        <span class="row-val" id="progress-text">0 / 0</span>
-      </div>
-      <div class="bar"><i id="progress-fill"></i></div>
-      <div class="heat" id="heat"></div>
-    </div>
-
-    <button class="group link-group" id="btn-wb" hidden>
-      <span class="row-title">错词本</span>
-      <span class="row-val"><b id="wb-count">0</b> 个待消灭 <span class="chev">›</span></span>
-    </button>
-
-    <div class="group">
-      <div class="row between">
-        <span class="row-title">今日词表</span>
-        <span class="row-val" id="word-count">0</span>
-      </div>
-      <ul class="wordlist" id="wordlist"></ul>
-    </div>
-
     <div class="mode-block">
-      <p class="group-title">练习方式</p>
       <div class="seg" id="mode-seg">
         <button data-mode="flash">闪卡</button>
         <button data-mode="choice">选择</button>
+        <button data-mode="write">默写</button>
         <button data-mode="spell">拼写</button>
         <button data-mode="listen">听写</button>
       </div>
       <p class="mode-note" id="mode-note">看词回忆，翻面自评</p>
     </div>
 
+    <div class="group list-group">
+      <button class="row between wl-head" id="wl-toggle">
+        <span class="row-title">今日词表</span>
+        <span class="row-val"><span id="word-count">0</span> 个<span class="chev" id="wl-chev">›</span></span>
+      </button>
+      <ul class="wordlist" id="wordlist"></ul>
+    </div>
+
     <div class="cta-space"></div>
     <div class="cta-wrap">
+      <p class="cta-note" id="cta-note"></p>
       <button class="btn-primary" id="btn-start">开始学习</button>
     </div>
   </section>
@@ -268,6 +267,7 @@
         <div class="seg small" id="seg-mode">
           <button data-v="flash">闪卡</button>
           <button data-v="choice">选择</button>
+          <button data-v="write">默写</button>
           <button data-v="spell">拼写</button>
           <button data-v="listen">听写</button>
         </div>
@@ -360,7 +360,7 @@
       <p class="group-title">关于</p>
       <button class="row link" id="btn-about">
         <span class="row-title">关于识词</span>
-        <span class="row-val"><span id="app-ver">v2.9</span> <span class="chev">›</span></span>
+        <span class="row-val"><span id="app-ver">v3.0</span> <span class="chev">›</span></span>
       </button>
       <button class="row link" id="btn-update">
         <span class="row-title">检查更新</span>
@@ -455,9 +455,10 @@
       <div class="meta" id="qc-meta"></div>
     </div>
 
-    <!-- 拼写 / 听写 -->
+    <!-- 拼写 / 听写 / 默写 -->
     <div id="quiz-input" class="quiz-card" hidden>
       <p class="quiz-ask" id="qi-ask">听发音，拼出单词</p>
+      <div class="qi-word" id="qi-word" hidden>—</div>
       <button class="play-big" id="qi-play" aria-label="播放">
         <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
       </button>
@@ -465,6 +466,8 @@
       <p class="quiz-hint" id="qi-hint"></p>
       <input id="qi-input" class="spell-input" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="在这里输入">
       <p class="quiz-verdict" id="qi-verdict"></p>
+      <p class="qi-answer" id="qi-answer" hidden></p>
+      <button class="text-btn override" id="btn-override" hidden>算我写对了</button>
     </div>
 
     <div class="cta-space"></div>
@@ -549,10 +552,10 @@
 
 <input type="file" id="file-import" accept=".json,application/json" hidden>
 
-<script src="js/core.js?v=20261124c"></script>
-<script src="js/dict.js?v=20261124c"></script>
-<script src="js/study.js?v=20261124c"></script>
-<script src="js/views.js?v=20261124c"></script>
-<script src="js/boot.js?v=20261124c"></script>
+<script src="js/core.js?v=20261124e"></script>
+<script src="js/dict.js?v=20261124e"></script>
+<script src="js/study.js?v=20261124e"></script>
+<script src="js/views.js?v=20261124e"></script>
+<script src="js/boot.js?v=20261124e"></script>
 </body>
 </html>

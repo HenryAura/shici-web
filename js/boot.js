@@ -62,6 +62,12 @@ function bindToday() {
     });
   });
 
+  $('wl-toggle').addEventListener('click', () => {
+    if ($('wl-chev').hidden) return;
+    wlOpen = !wlOpen;
+    renderToday();
+  });
+
   $('btn-wb').addEventListener('click', () => {
     const m = S.settings.mode === 'flash' ? 'choice' : S.settings.mode;
     startSession('wb', m);
@@ -100,13 +106,14 @@ function bindStudy() {
     b.addEventListener('click', () => gradeFlash(b.dataset.grade));
   });
 
-  $('btn-submit').addEventListener('click', submitSpell);
+  $('btn-submit').addEventListener('click', submitAnswer);
+  $('btn-override').addEventListener('click', overrideWrite);
   $('btn-next').addEventListener('click', nextQuestion);
 
   $('qi-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      if ($('btn-submit').hidden === false) submitSpell();
+      if ($('btn-submit').hidden === false) submitAnswer();
       else if ($('btn-next').hidden === false) nextQuestion();
     }
   });
@@ -373,6 +380,7 @@ function maybeHomeTip() {
 
 /* ================= 启动 ================= */
 async function boot() {
+  const t0 = Date.now();
   loadStore();
   initTheme();
 
@@ -400,7 +408,6 @@ async function boot() {
   bindImport();
   bindKeyboard();
 
-  $('boot').hidden = true;
   $('app').hidden = false;
   $('tabbar').hidden = false;
 
@@ -409,6 +416,14 @@ async function boot() {
 
   if (Object.keys(S.ach).length === 0) checkAchievements(true);
   maybeHomeTip();
+
+  /* 开屏至少留一会儿，别让动画还没展开就消失；数据早就绪也要走完这一下 */
+  const wait = Math.max(0, 820 - (Date.now() - t0));
+  setTimeout(() => {
+    const b = $('boot');
+    b.classList.add('out');
+    setTimeout(() => { b.hidden = true; }, 380);
+  }, wait);
 }
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {

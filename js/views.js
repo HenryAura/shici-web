@@ -22,25 +22,31 @@ function todayStat() {
   return { done: done, due: due.length, newLeft: fresh.length, total: done + due.length + fresh.length, dueList: due, freshList: fresh };
 }
 
+let wlOpen = false;
+
 function renderToday() {
   const st = todayStat();
+  const left = st.due + st.newLeft;
 
   $('today-date').textContent = dateLine() + ' · ' + greeting();
-  $('hero-num').textContent = String(st.total);
+  $('hero-num').textContent = String(left);
   $('hero-sub').textContent = st.total === 0
     ? '今天没有待学的词，休息一下'
-    : (st.due > 0 && st.newLeft > 0 ? '复习 ' + st.due + ' · 新词 ' + st.newLeft
-      : st.due > 0 ? '到期复习 ' + st.due + ' 个词' : '新词 ' + st.newLeft + ' 个');
-
-  $('st-done').textContent = String(st.done);
-  $('st-new').textContent = String(st.newLeft);
-  $('st-streak').textContent = String(streak());
+    : left === 0 ? '今天的词都过完了'
+      : (st.due > 0 && st.newLeft > 0 ? '复习 ' + st.due + ' · 新词 ' + st.newLeft
+        : st.due > 0 ? '到期的复习' : '今天的新词');
+  $('st-streak').textContent = '连续 ' + streak() + ' 天';
 
   renderExam();
 
   const pct = st.total > 0 ? Math.round((st.done / st.total) * 100) : 0;
-  $('progress-text').textContent = st.done + ' / ' + st.total;
   $('progress-fill').style.width = pct + '%';
+  $('tc-pct').textContent = pct + '%';
+  const C = 2 * Math.PI * 18;
+  const arc = $('tc-arc');
+  arc.setAttribute('stroke-dasharray', C.toFixed(1));
+  arc.setAttribute('stroke-dashoffset', (C * (1 - pct / 100)).toFixed(1));
+  $('progress-text').textContent = st.done + ' / ' + st.total + ' 已答';
 
   renderHeat();
 
@@ -51,7 +57,10 @@ function renderToday() {
   const list = $('wordlist');
   list.innerHTML = '';
   const preview = st.dueList.concat(st.freshList);
-  $('word-count').textContent = preview.length ? String(preview.length) : '0';
+  $('word-count').textContent = String(preview.length);
+  const more = preview.length > 6;
+  $('wl-chev').hidden = !more;
+  $('wl-toggle').classList.toggle('open', wlOpen && more);
 
   if (!preview.length) {
     const li = document.createElement('li');
@@ -59,7 +68,8 @@ function renderToday() {
     li.textContent = '今天没有待学的词';
     list.appendChild(li);
   } else {
-    preview.slice(0, 8).forEach((w) => {
+    const cap = wlOpen ? 30 : 6;
+    preview.slice(0, cap).forEach((w) => {
       const li = document.createElement('li');
       const a = document.createElement('span');
       a.className = 'w';
@@ -71,6 +81,12 @@ function renderToday() {
       li.appendChild(b);
       list.appendChild(li);
     });
+    if (wlOpen && preview.length > cap) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = '还有 ' + (preview.length - cap) + ' 个 · 练习时会依次出现';
+      list.appendChild(li);
+    }
   }
 
   const btn = $('btn-start');
@@ -78,10 +94,15 @@ function renderToday() {
   btn.textContent = st.total === 0 ? '今天已完成'
     : (st.done > 0 ? '继续练习' : '开始' + MODE_NAME[S.settings.mode]);
 
+  const note = $('cta-note');
+  if (note) {
+    note.textContent = left > 0 ? left + ' 个词 · 约 ' + Math.max(1, Math.round(left * 0.25)) + ' 分钟' : '';
+  }
+
   renderModeSeg();
 }
 
-/** 考试倒计时卡：距考试天数 + 必背词覆盖率 + 倒排建议 */
+/** 考试倒计时：压缩成两行细条，只保留天数 / 覆盖率 / 今日安排 */
 function renderExam() {
   const card = $('exam-card');
   if (!card) return;
@@ -92,19 +113,12 @@ function renderExam() {
   const dt = new Date(S.settings.examDate + 'T00:00:00');
   const wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   $('exam-days').textContent = p.days === 0 ? '今天' : p.days + ' 天';
-  $('exam-date-label').textContent = (dt.getMonth() + 1) + '月' + dt.getDate() + '日 · ' + wd[dt.getDay()];
-  $('exam-pct').textContent = p.pct + '%';
+  $('exam-date-label').textContent =
+    (dt.getMonth() + 1) + '月' + dt.getDate() + '日 · 覆盖 ' + p.pct + '%';
 
-  const C = 2 * Math.PI * 20;
-  const arc = $('exam-arc');
-  arc.setAttribute('stroke-dasharray', C.toFixed(1));
-  arc.setAttribute('stroke-dashoffset', (C * (1 - p.pct / 100)).toFixed(1));
-
-  let txt;
   const eff = effectiveNewPerDay();
   const boosted = S.settings.examAuto && eff > S.settings.newPerDay;
-  $('exam-kicker').textContent = boosted ? '距考试 · 今日新词 ' + eff : '距考试 · 必背词覆盖';
-
+  let txt;
   if (p.days === 0) {
     txt = '今天考试 · 全力以赴';
   } else if (p.remain === 0) {
@@ -112,9 +126,10 @@ function renderExam() {
   } else if (!p.reachable) {
     // 真实所需已超过每日上限：如实说明，不把建议值悄悄压到上限装作能追上
     txt = '剩余 ' + p.remain + ' 词 · 需每天 ' + p.suggest + ' 词，已按上限 ' + NEW_MAX + ' 推进';
+  } else if (boosted) {
+    txt = '今日新词 ' + eff + ' · 剩余 ' + p.remain + ' 词';
   } else {
     txt = '剩余 ' + p.remain + ' 词 · 建议每天 ' + p.suggest + ' 词';
-    if (!S.settings.examAuto) txt += ' · 未自动加量';
   }
   $('exam-plan').textContent = txt;
 }
@@ -128,18 +143,16 @@ function renderModeSeg() {
 
 function renderHeat() {
   const box = $('heat');
+  if (!box) return;
   box.innerHTML = '';
-  const wd = ['日', '一', '二', '三', '四', '五', '六'];
   const today = dayKey();
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
     const k = dayKey(d.getTime());
     const n = (S.hist[k] && S.hist[k].asked) || 0;
-    const el = document.createElement('div');
-    if (n > 0) el.className = 'on';
-    if (k === today) el.className += ' today';
-    el.textContent = wd[d.getDay()];
+    const el = document.createElement('span');
+    el.className = 'd' + (n > 0 ? ' on' : '') + (k === today ? ' today' : '');
     el.title = k + ' · ' + n + ' 题';
     box.appendChild(el);
   }
