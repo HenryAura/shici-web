@@ -1,4 +1,4 @@
-const CACHE = 'shici-v29';
+const CACHE = 'shici-v30';
 const CORE = [
   './',
   './index.html',

@@ -22,9 +22,9 @@
   --r: 12px;
   --r-s: 8px;
   --pad: 16px;
-  --tab-h: 58px;      /* 悬浮胶囊高 */
-  --tab-pad: 14px;    /* 胶囊距屏幕底 */
-  --tab-gap: 14px;    /* 主操作区与胶囊之间 */
+  --tab-h: 49px;      /* iOS 原生 tab 栏高 */
+  --tab-pad: 0px;     /* 通栏贴底，不再悬浮 */
+  --tab-gap: 10px;    /* 主操作区与 tab 栏之间 */
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
 
@@ -372,7 +372,7 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   justify-content: space-between;
   gap: 12px;
   margin: 0 calc(var(--pad-l, var(--pad)) * -1);
-  padding: calc(14px + var(--safe-t)) var(--pad-l, var(--pad)) 12px;
+  padding: calc(10px + var(--safe-t)) var(--pad-l, var(--pad)) 10px;
 }
 .page-head > * { position: relative; }
 .head-text { min-width: 0; }
@@ -380,7 +380,7 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   font-size: 12px;
   color: var(--ink-3);
   letter-spacing: 0.2px;
-  margin-bottom: 5px;
+  margin-bottom: 3px;
 }
 .page-head h1 {
   font-size: 34px;
@@ -1569,53 +1569,30 @@ body.kb-open #page-study { padding-bottom: calc(var(--act-h) + var(--kb-h)); }
 .done-wrap .btn-primary { margin-top: 24px; }
 
 /* ---------------- 底部标签栏 ---------------- */
-/* ---------------- 悬浮玻璃底栏 ---------------- */
+/* ---------------- iOS 原生通栏底栏：贴底、毛玻璃、发丝线，不再悬浮 ---------------- */
 #tabbar {
   position: fixed;
   left: 0; right: 0;
   bottom: 0;
   z-index: 30;
-  padding: 0 16px calc(var(--tab-pad) + var(--safe-b));
-  background: none;
-  border: 0;
-  pointer-events: none;
-}
-/* 胶囊下方那条缝会漏出没被模糊的内容，用一层底渐隐收干净 */
-#tabbar::before {
-  content: '';
-  position: absolute;
-  left: 0; right: 0;
-  bottom: 0;
-  height: calc(var(--tab-pad) + var(--safe-b) + 10px);
-  background: linear-gradient(to top, var(--bg) 55%, transparent);
-  pointer-events: none;
-  z-index: -1;
+  padding: 0 0 var(--safe-b);
+  background: var(--glass-strong);
+  -webkit-backdrop-filter: var(--glass-blur-strong);
+  backdrop-filter: var(--glass-blur-strong);
+  border-top: 0.5px solid var(--sep);
+  pointer-events: auto;
 }
 #tabbar .bar {
   position: relative;
   display: flex;
   height: var(--tab-h);
-  max-width: 528px;
+  max-width: 560px;
   margin: 0 auto;
-  border-radius: 100px;
-  background: var(--glass-strong);
-  -webkit-backdrop-filter: var(--glass-blur-strong);
-  backdrop-filter: var(--glass-blur-strong);
-  box-shadow: var(--glass-shadow), var(--glass-li);
-  overflow: hidden;
+  background: none;
   pointer-events: auto;
 }
-.tab-glow {
-  position: absolute;
-  top: 5px;
-  bottom: 5px;
-  left: 5px;
-  width: calc((100% - 10px) / 4);
-  border-radius: 100px;
-  background: color-mix(in srgb, var(--acc) 11%, transparent);
-  transition: transform 0.34s cubic-bezier(0.32, 0.72, 0, 1);
-  pointer-events: none;
-}
+/* 原生 tab 栏没有选中胶囊高亮，只变色；元素留着，JS 有判空 */
+.tab-glow { display: none; }
 .tab {
   position: relative;
   z-index: 1;
