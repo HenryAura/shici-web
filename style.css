@@ -1282,22 +1282,10 @@ body.kb-open #page-study { padding-bottom: calc(var(--act-h) + var(--kb-h)); }
   padding: calc(10px + var(--safe-t)) 0 8px;
   flex: 0 0 auto;
 }
-/* 屏幕被键盘吃掉一半：卡片收一收，让题干、输入框、操作条同屏可见，
-   否则浏览器为了让输入框露出来会把整页往上顶。
-   卡片顺手撑到操作条上沿——中间那块空白留在卡片里（回忆区），
-   比卡片底下露出一大条白底更像一整块答题区 */
-body.kb-open #page-study .quiz-card { flex: 1 1 auto; min-height: 0; margin-bottom: 10px; }
-body.kb-open .study-head { padding-top: calc(6px + var(--safe-t)); padding-bottom: 4px; }
-body.kb-open #quiz-input { padding: 14px 20px 18px; }
-body.kb-open #quiz-input .qi-word { margin-top: 6px; font-size: calc(var(--word-size) - 4px); }
-body.kb-open #quiz-input .qi-bottom { margin-top: 12px; }
-body.kb-open #quiz-input .spell-input.zh { margin-top: 12px; height: 44px; }
-/* 键盘弹出时的紧凑化走过渡：一次性跳完就是「整个界面抖一下」的来源。
-   只对内边距/外边距/字号这类能平滑插值的属性过渡，卡片撑高那一下没法插值 */
-.study-head, #quiz-input, #quiz-input .qi-word,
-#quiz-input .qi-bottom, #quiz-input .spell-input.zh {
-  transition: padding .2s ease, margin .2s ease, font-size .2s ease, height .2s ease;
-}
+/* 屏幕被键盘吃掉一半：不再压缩/拉伸卡片——
+   输入框本来就悬在键盘上方，布局一动就是「整个界面抖一下」。
+   底部留出键盘高度（下面那条 padding），万一内容真的被挡住，
+   页面有滚动余地，keepFocusVisible 会平滑滚到位 */
 .study-bar { flex: 1; }
 .counter { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
 
