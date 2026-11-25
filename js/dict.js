@@ -534,11 +534,50 @@ function randomPool() {
   let seed = 0;
   const dk = dayKey();
   for (let i = 0; i < dk.length; i++) seed = (seed * 31 + dk.charCodeAt(i)) >>> 0;
+  /* mulberry32：老 LCG 的低位周期只有 2~4，seed % (i+1) 洗出来的顺序带结构感，
+     按词频排的词表里派生词天然相邻，弱洗牌后照样成串（词族扎堆的根源） */
+  const rand = () => {
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
   const a = S.order.slice();
   for (let i = a.length - 1; i > 0; i--) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-    const j = seed % (i + 1);
+    const j = Math.floor(rand() * (i + 1));
     const t = a[i]; a[i] = a[j]; a[j] = t;
+  }
+  /* 词族跨天散开：前 5 个字母相同的词（conventionalism / conventionally 这类）
+     按词频排序天然相邻，光洗牌还是会一起落进同一天的批次。
+     把同族成员强制铺到全池相距 250+ 的位置上，一天最多见着一个 */
+  const MIN_GAP = 250;
+  const posOf = new Map();
+  a.forEach((w, i) => posOf.set(w, i));
+  const fams = new Map();
+  for (const w of a) {
+    const p = w.slice(0, 5);
+    if (!fams.has(p)) fams.set(p, []);
+    fams.get(p).push(w);
+  }
+  for (const ws of fams.values()) {
+    if (ws.length < 2) continue;
+    const placed = [posOf.get(ws[0])];
+    for (let m = 1; m < ws.length; m++) {
+      const w = ws[m], cur = posOf.get(w);
+      let best = cur, bestDist = -1;
+      for (let tries = 0; tries < 12; tries++) {
+        const j = Math.floor(rand() * a.length);
+        let dist = Infinity;
+        for (const q of placed) dist = Math.min(dist, Math.abs(j - q));
+        if (dist >= MIN_GAP) { best = j; break; }
+        if (dist > bestDist) { bestDist = dist; best = j; }
+      }
+      if (best === cur) { placed.push(cur); continue; }
+      const other = a[best];
+      a[best] = w; a[cur] = other;
+      posOf.set(w, best); posOf.set(other, cur);
+      placed.push(best);
+    }
   }
   poolCache = { key: k, list: a };
   return a;
@@ -572,22 +611,22 @@ async function loadFreq() {
 function freqOf(w) {
   const key = String(w || '').toLowerCase().trim();
   if (!key || key.indexOf(' ') >= 0) return 0;
-  if (FREQ.h.has(key)) return 1;
-  if (FREQ.m.has(key)) return 2;
+  let lv;
   const e = entryOf(key);
-  if (e && e.fr) return e.fr;
-  if (FREQ.ready) {
+  if (FREQ.h.has(key)) lv = 1;
+  else if (FREQ.m.has(key)) lv = 2;
+  else if (e && e.fr) lv = e.fr;
+  else if (FREQ.ready) {
     const base = resolveToken(key).base;
-    if (base !== key) {
-      if (FREQ.h.has(base)) return 1;
-      if (FREQ.m.has(base)) return 2;
-    }
-    return 3;
+    if (base !== key) lv = FREQ.h.has(base) ? 1 : (FREQ.m.has(base) ? 2 : 3);
+    else lv = 3;
+  } else {
+    /* 词频表还没到位（首屏首次渲染）：先按大纲档位顶着，加载完会重绘 */
+    lv = e && e.f === 1 ? 1 : (e && e.f === 2 ? 2 : 0);
   }
-  /* 词频表还没到位（首屏首次渲染）：先按大纲档位顶着，加载完会重绘 */
-  if (e && e.f === 1) return 1;
-  if (e && e.f === 2) return 2;
-  return 0;
+  /* 大纲必背词（核心词、非认知词）最低标到「常用」：考纲词不存在真正意义上的低频 */
+  if (lv === 3 && e && !e.src && e.f !== 2) lv = 2;
+  return lv;
 }
 
 /** 频段小徽章；词组与未知词返回 null，界面就不占位 */

@@ -1098,7 +1098,11 @@ function mergeBackup(data) {
     S.pins = merged;
   }
   if (web.settings && typeof web.settings === 'object') {
-    S.settings = Object.assign({}, DEFAULT_SETTINGS, S.settings, web.settings);
+    /* 设置跟随云端，但「默认练习方式」除外：它是每台设备自己的使用习惯，
+       两台设备共用一份备份时，谁最后推送谁的 mode 就被带过来，看起来就是「自己变了」 */
+    const cloud = Object.assign({}, web.settings);
+    delete cloud.mode;
+    S.settings = Object.assign({}, DEFAULT_SETTINGS, S.settings, cloud);
     normalizeSettings();
     applySettings();
   }
