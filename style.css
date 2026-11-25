@@ -831,6 +831,7 @@ body.reduce-motion * { animation: none !important; transition: none !important; 
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(var(--tab-h) + var(--tab-pad) + var(--tab-gap) + var(--safe-b));
+  transition: bottom .18s ease;
   width: min(100%, 560px);
   z-index: 20;
   padding: 0 var(--pad);
@@ -859,6 +860,7 @@ body.fullscreen .cta-wrap {
   padding: 10px var(--pad) calc(12px + var(--safe-b));
   background: var(--bg);
   border-top: 0.5px solid var(--sep);
+  transition: bottom .18s ease;
 }
 body.fullscreen .cta-wrap::before { content: none; }
 .cta-wrap > button { pointer-events: auto; }
@@ -1290,6 +1292,12 @@ body.kb-open #quiz-input { padding: 14px 20px 18px; }
 body.kb-open #quiz-input .qi-word { margin-top: 6px; font-size: calc(var(--word-size) - 4px); }
 body.kb-open #quiz-input .qi-bottom { margin-top: 12px; }
 body.kb-open #quiz-input .spell-input.zh { margin-top: 12px; height: 44px; }
+/* 键盘弹出时的紧凑化走过渡：一次性跳完就是「整个界面抖一下」的来源。
+   只对内边距/外边距/字号这类能平滑插值的属性过渡，卡片撑高那一下没法插值 */
+.study-head, #quiz-input, #quiz-input .qi-word,
+#quiz-input .qi-bottom, #quiz-input .spell-input.zh {
+  transition: padding .2s ease, margin .2s ease, font-size .2s ease, height .2s ease;
+}
 .study-bar { flex: 1; }
 .counter { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 46px; text-align: right; }
 

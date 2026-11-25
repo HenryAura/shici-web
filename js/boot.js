@@ -586,9 +586,11 @@ function bindSoftKeyboard() {
     last = px;
     root.style.setProperty('--kb-h', px + 'px');
     document.body.classList.toggle('kb-open', px > 0);
-    /* 键盘还在做弹出动画时浏览器会自己滚一次，
-       隔几拍各纠一次，最后停在输入框刚好露出的位置 */
-    if (opening) [80, 200, 360, 540].forEach((d) => setTimeout(keepFocusVisible, d));
+    /* 键盘弹出/变高期间跟着它连续微调：动画每变一拍就纠一次，
+       每次只挪几像素，肉眼是「贴着键盘走」而不是过去的 4 次大跳；
+       尾部再补两拍，收住浏览器自己的最后一滚 */
+    requestAnimationFrame(keepFocusVisible);
+    if (opening) [120, 320, 560].forEach((d) => setTimeout(keepFocusVisible, d));
   }
 
   function queue() {
