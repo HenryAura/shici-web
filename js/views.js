@@ -766,8 +766,15 @@ function renderMine() {
   setSeg('seg-mode', s.mode);
   setSeg('seg-order', s.order);
   setSeg('seg-scope', s.scope);
+  setSeg('seg-freq', s.freqScope);
   setSeg('seg-theme', s.theme);
   setSeg('seg-size', String(s.wordSize));
+
+  /* 词频范围提示：实时统计各档在当前词库中的数量 */
+  const fc = { 1: 0, 2: 0, 3: 0 };
+  for (const w of S.order) { const lv = freqOf(w); if (lv >= 1 && lv <= 3) fc[lv]++; }
+  $('freq-hint').textContent = '高频 ' + fc[1] + ' · 常用 ' + fc[2] + ' · 低频 ' + fc[3] +
+    '，按徽章过滤每日新词；已学过的词不受影响。';
 
   $('sw-motion').setAttribute('aria-checked', s.reduceMotion ? 'true' : 'false');
   $('sw-awake').setAttribute('aria-checked', s.keepAwake ? 'true' : 'false');

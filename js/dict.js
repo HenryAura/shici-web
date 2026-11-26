@@ -499,6 +499,14 @@ function inScope(w) {
   const sc = S.settings.scope;
   if (sc === 'core') return e.f !== 2;
   if (sc === 'rare') return e.f === 2;
+  /* 词频范围：高频=书内核心词(1)，高频+常用含考试主力(1/2)，低频=低优先级(3) */
+  const fs = S.settings.freqScope;
+  if (fs && fs !== 'all') {
+    const lv = freqOf(w);
+    if (fs === 'hf') return lv === 1;
+    if (fs === 'hfm') return lv <= 2;
+    if (fs === 'low') return lv === 3;
+  }
   return true;
 }
 
@@ -529,7 +537,7 @@ function freshList(limit) {
  */
 let poolCache = { key: '', list: null };
 function randomPool() {
-  const k = dayKey() + '|' + S.settings.scope + '|' + S.order.length;
+  const k = dayKey() + '|' + S.settings.scope + '|' + S.settings.freqScope + '|' + S.order.length;
   if (poolCache.key === k && poolCache.list) return poolCache.list;
   let seed = 0;
   const dk = dayKey();

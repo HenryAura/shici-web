@@ -411,6 +411,7 @@ function bindMine() {
   bindSeg('seg-mode', (v) => { S.settings.mode = v; });
   bindSeg('seg-order', (v) => { S.settings.order = v; poolCache = { key: '', list: null }; });
   bindSeg('seg-scope', (v) => { S.settings.scope = v; poolCache = { key: '', list: null }; });
+  bindSeg('seg-freq', (v) => { S.settings.freqScope = v; poolCache = { key: '', list: null }; });
   bindSeg('seg-theme', (v) => { S.settings.theme = v; applySettings(); });
   bindSeg('seg-size', (v) => { S.settings.wordSize = Number(v); applySettings(); });
 
