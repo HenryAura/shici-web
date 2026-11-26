@@ -756,7 +756,9 @@ function renderMine() {
     eh.textContent = '距考试 ' + ep.days + ' 天 · 每天需 ' + ep.suggest + ' 词才学得完，已超过上限 ' +
       NEW_MAX + '，建议缩小词量范围或提前开始。';
   } else {
-    eh.textContent = '距考试 ' + ep.days + ' 天 · 必背 ' + ep.done + '/' + ep.total +
+    eh.textContent = '距考试 ' + ep.days + ' 天 · ' + (s.scope === 'rare' ? '认知' : '必背') +
+      (s.freqScope === 'hf' ? '高频' : s.freqScope === 'low' ? '低频' : s.freqScope === 'hfm' ? '(高频+常用)' : '') +
+      ' ' + ep.done + '/' + ep.total +
       (ep.days > 0 ? ' · 每天 ' + ep.suggest + ' 词' : '') +
       (s.examAuto ? '（自动）' : '（未自动）');
   }

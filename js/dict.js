@@ -493,21 +493,24 @@ function buildReview(text) {
 }
 
 /* ================= 新词候选 ================= */
+/** 词频范围匹配：hf=仅高频，hfm=高频+常用，low=仅低频，all 不过滤 */
+function freqMatch(w) {
+  const fs = S.settings.freqScope;
+  if (!fs || fs === 'all') return true;
+  const lv = freqOf(w);
+  if (fs === 'hf') return lv === 1;
+  if (fs === 'hfm') return lv <= 2;
+  if (fs === 'low') return lv === 3;
+  return true;
+}
+
 function inScope(w) {
   const e = entryOf(w);
   if (!e) return false;
   const sc = S.settings.scope;
-  if (sc === 'core') return e.f !== 2;
-  if (sc === 'rare') return e.f === 2;
-  /* 词频范围：高频=书内核心词(1)，高频+常用含考试主力(1/2)，低频=低优先级(3) */
-  const fs = S.settings.freqScope;
-  if (fs && fs !== 'all') {
-    const lv = freqOf(w);
-    if (fs === 'hf') return lv === 1;
-    if (fs === 'hfm') return lv <= 2;
-    if (fs === 'low') return lv === 3;
-  }
-  return true;
+  if (sc === 'core') return e.f !== 2 && freqMatch(w);
+  if (sc === 'rare') return e.f === 2 && freqMatch(w);
+  return freqMatch(w);
 }
 
 /** 新词候选：置顶优先，其次按设置顺序 */

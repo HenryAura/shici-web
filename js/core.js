@@ -7,7 +7,7 @@ const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
 const NEW_MIN = 5;    // 每日新词下限
 const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
-const APP_VER = 'v3.4.8';
+const APP_VER = 'v3.4.9';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -272,13 +272,17 @@ function daysToExam() {
   return n < 0 ? null : n;
 }
 
-/** 必背词（f 为 1 或无分级）的掌握情况，口径与鸿蒙端一致 */
+/** 考试倒排的词量口径：跟随「新词范围」（必背/认知）与「词频范围」，
+    让主页的「剩余 X 词 · 建议每天 Y 词」与实际练习池一致 */
 function coreStat() {
   let total = 0;
   let done = 0;
+  const rare = S.settings.scope === 'rare';
   for (const w of S.order) {
     const e = S.dict.get(w);
-    if (!e || e.f === 2) continue; // 2 = 认知词，不计入必背
+    if (!e) continue;
+    if (rare ? e.f !== 2 : e.f === 2) continue; // 必背/认知口径与新词范围一致
+    if (!freqMatch(w)) continue;                // 词频范围生效
     total++;
     const p = S.progress[w];
     if (p && (p.full || 0) >= 2 && !S.wb[w]) done++;
