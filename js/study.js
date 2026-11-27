@@ -17,8 +17,10 @@ let advanceTimer = null;
 function buildSession(kind, mode) {
   const items = [];
   if (kind === 'wb') {
-    /* 错词本不设上限：以前截前 50 个，错词多了永远轮不到后面的词 */
-    const words = Object.keys(S.wb).filter((w) => S.dict.has(w));
+    /* 错词本不设上限：以前截前 50 个，错词多了永远轮不到后面的词。
+       每次进来都重新洗牌：否则永远从最早那个错词开头，后面的词练不到，
+       也容易被“位置记忆”蒙对，测不出真实掌握度。 */
+    const words = shuffle(Object.keys(S.wb).filter((w) => S.dict.has(w)));
     words.forEach((w) => items.push({ w: w, tag: 'wb' }));
   } else if (kind === 'free') {
     /* 继续学：不限额度，把范围内所有还没学的新词一次排进来 */
