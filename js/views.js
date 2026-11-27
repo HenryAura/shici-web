@@ -194,12 +194,11 @@ function refreshStartBtn() {
       ? left + ' 个词 · 约 ' + Math.max(1, Math.round(left * 0.25)) + ' 分钟'
       : '';
   }
-  /* 今日目标完成但词库里还有没学的词：给一个「再学一批」的加练入口 */
+  /* 今日目标完成但词库里还有没学的词：给一个「继续学」的加练入口 */
   const more = $('btn-more');
   if (more) {
     const canMore = left === 0 && freshList(100000).length > 0;
     more.hidden = !canMore;
-    if (canMore) more.textContent = '再学 ' + EXTRA_NEW + ' 个新词';
   }
 }
 

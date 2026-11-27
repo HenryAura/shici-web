@@ -8,7 +8,7 @@ const WB_KEEP = 3; // 错词本连续答对 3 次移出
 const NEW_MIN = 5;    // 每日新词下限
 const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
 const EXTRA_NEW = 20; // 今日目标完成后的「再学一批」加练步长
-const APP_VER = 'v3.5.0';
+const APP_VER = 'v3.5.1';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
