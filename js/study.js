@@ -20,6 +20,9 @@ function buildSession(kind, mode) {
     /* 错词本不设上限：以前截前 50 个，错词多了永远轮不到后面的词 */
     const words = Object.keys(S.wb).filter((w) => S.dict.has(w));
     words.forEach((w) => items.push({ w: w, tag: 'wb' }));
+  } else if (kind === 'free') {
+    /* 继续学：不限额度，把范围内所有还没学的新词一次排进来 */
+    freshList(Number.MAX_SAFE_INTEGER).forEach((w) => items.push({ w: w, tag: 'new' }));
   } else {
     const now = Date.now();
     const due = [];

@@ -237,11 +237,9 @@ function bindToday() {
     startSession('today', S.settings.mode);
   });
 
-  /* 今日目标完成后加练：先补今天的额度，再直接进练习 */
+  /* 今日目标完成后想接着学：不限量，把剩下没学的新词一次排进来 */
   $('btn-more').addEventListener('click', () => {
-    addNewQuota(EXTRA_NEW);
-    renderToday();
-    startSession('today', S.settings.mode);
+    startSession('free', S.settings.mode);
   });
 
   $$('#mode-seg button').forEach((b) => {

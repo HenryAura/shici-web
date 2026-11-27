@@ -7,8 +7,7 @@ const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
 const NEW_MIN = 5;    // 每日新词下限
 const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
-const EXTRA_NEW = 20; // 今日目标完成后的「再学一批」加练步长
-const APP_VER = 'v3.5.1';
+const APP_VER = 'v3.5.2';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -318,21 +317,12 @@ function effectiveNewPerDay() {
   return Math.max(base, Math.min(NEW_MAX, p.suggest));
 }
 
-/** 今天还能学多少个新词：每日额度 + 今日加练额度，减去今天已经学过的新词，学满就只做复习 */
+/** 今天还能学多少个新词：每日额度减去今天已经学过的新词，学满就只做复习 */
 function newQuotaLeft() {
   const h = S.hist[dayKey()] || {};
   // newTried 是「今天接触过的新词数」，老数据没有这个字段就退回到 newLearned
   const used = h.newTried != null ? h.newTried : (h.newLearned || 0);
-  return Math.max(0, effectiveNewPerDay() + (h.bonus || 0) - used);
-}
-
-/** 今日目标完成后想接着学：给当天补 n 个新词名额（只影响今天） */
-function addNewQuota(n) {
-  const k = dayKey();
-  if (!S.hist[k]) S.hist[k] = { newLearned: 0, asked: 0, full: 0, partial: 0, wrong: 0, sessions: [] };
-  const h = S.hist[k];
-  h.bonus = (h.bonus || 0) + (Number(n) || 0);
-  saveStore();
+  return Math.max(0, effectiveNewPerDay() - used);
 }
 
 /* ================= 设置应用 ================= */
