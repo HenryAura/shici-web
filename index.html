@@ -166,8 +166,16 @@
       <div class="stat-cell"><b id="rep-asked">0</b><span>累计答题</span></div>
       <div class="stat-cell"><b id="rep-acc">—</b><span>正确率</span></div>
       <div class="stat-cell"><b id="rep-mastered">0</b><span>已掌握</span></div>
-      <div class="stat-cell"><b id="rep-wbc">0</b><span>错词本</span></div>
+      <div class="stat-cell"><b id="rep-learned">0</b><span>学过的词</span></div>
     </div>
+
+    <button class="group link-group wb-entry" id="rep-wb-entry">
+      <span class="wb-entry-main">
+        <span class="row-title">错词本</span>
+        <span class="wb-entry-sub" id="rep-wb-sub">答错过的词都在这里，先过一遍再练</span>
+      </span>
+      <span class="row-val"><span id="rep-wb-n">0 个</span> <span class="chev">›</span></span>
+    </button>
 
     <div class="group">
       <div class="row between">
@@ -178,6 +186,11 @@
     </div>
 
     <div class="group">
+      <p class="group-title">薄弱词</p>
+      <div id="rep-weak" class="weak-list"></div>
+    </div>
+
+    <div class="group">
       <div class="row between">
         <span class="row-title">成就</span>
         <span class="row-val" id="ach-count">0 / 9</span>
@@ -185,23 +198,17 @@
       <div class="ach-grid" id="ach-grid"></div>
     </div>
 
-    <button class="group link-group" id="rep-wb-entry">
-      <span class="row-title">错词本</span>
-      <span class="row-val"><span id="rep-wb-n">0 个</span> <span class="chev">›</span></span>
-    </button>
-
-    <div class="group">
-      <p class="group-title">薄弱词</p>
-      <div id="rep-weak" class="weak-list"></div>
-    </div>
-
-    <div class="group">
-      <p class="group-title">最近练习</p>
+    <details class="group fold-group">
+      <summary class="row between">
+        <span class="row-title">最近练习</span>
+        <span class="row-val"><span id="rep-recent-n"></span><span class="chev">›</span></span>
+      </summary>
       <div id="rep-recent" class="recent-list"></div>
-    </div>
+    </details>
 
     <div class="cta-space tall"></div>
   </section>
+
 
   <!-- ================= 我的 ================= -->
   <section id="page-mine" class="page" hidden>
@@ -359,6 +366,37 @@
   </section>
 
   </div>
+
+  <!-- ================= 错词本 ================= -->
+  <section id="page-wb" class="page pushed" hidden>
+    <header class="page-head push-head">
+      <button class="icon-btn" id="btn-wb-back" aria-label="返回">‹</button>
+      <div class="head-text">
+        <p class="eyebrow" id="wb-sub">答错过的词 · 连对 3 次移出</p>
+        <h1>错词本</h1>
+      </div>
+      <span class="chip-static" id="wb-total">0 个</span>
+    </header>
+
+    <div class="group">
+      <div class="row between">
+        <span class="row-title">排序</span>
+        <div class="seg small" id="seg-wb-sort">
+          <button data-v="wrong">错得多</button>
+          <button data-v="recent">最近</button>
+          <button data-v="az">A-Z</button>
+        </div>
+      </div>
+      <p class="hint" id="wb-hint">点任意词看释义、例句和发音；练的时候连对 3 次才移出。</p>
+    </div>
+
+    <div id="wb-list" class="result-list"></div>
+
+    <div class="cta-space"></div>
+    <div class="cta-wrap">
+      <button class="btn-primary" id="btn-wb-practice">开始练习</button>
+    </div>
+  </section>
 
   <!-- ================= 词条详情 ================= -->
   <section id="page-detail" class="page pushed" hidden>

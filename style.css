@@ -1665,3 +1665,56 @@ body.kb-open #page-study { padding-bottom: calc(var(--act-h) + var(--kb-h)); }
   transform: scale(0.993);
   transition-duration: 0.1s;
 }
+
+/* ---------------- 报告页：错词本入口 ---------------- */
+.wb-entry { align-items: center; }
+.wb-entry-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.wb-entry-sub {
+  font-size: 12px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 最近练习默认收起：统计页先看数据，翻旧账再展开 */
+.fold-group > summary {
+  list-style: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.fold-group > summary::-webkit-details-marker { display: none; }
+.fold-group > summary .chev { transition: transform 0.2s ease; display: inline-block; margin-left: 6px; }
+.fold-group[open] > summary .chev { transform: rotate(90deg); }
+.fold-group #rep-recent { margin-top: 12px; }
+
+/* ---------------- 错词本：词表 ---------------- */
+.wb-item { align-items: center; }
+.wb-item .r-w { flex: 0 0 auto; }
+.wb-item .r-g { flex: 1; min-width: 0; }
+.wb-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex: 0 0 auto;
+}
+.wb-side b {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+/* 错得多的词先看：3 次以上换成警示色，扫一眼就知道哪些最该背 */
+.wb-side b.hot { color: var(--bad); }
+.wb-side i {
+  font-style: normal;
+  font-size: 10px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}

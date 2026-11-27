@@ -677,8 +677,9 @@ function quitSession() {
   flushPending();
   releaseWake();
   recordSession(S.session);
+  const fromWb = !!(S.session && S.session.kind === 'wb');
   S.session = null;
   renderToday();
-  showPage('today');
+  showPage(fromWb ? 'wb' : 'today');
   wdSyncDebounced();
 }

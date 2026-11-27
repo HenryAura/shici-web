@@ -551,10 +551,11 @@ function toggleDetailWb() {
 /* ================= 报告 ================= */
 function renderReport() {
   const agg = achAgg();
+  const learned = Object.keys(S.progress).filter((w) => S.dict.has(w)).length;
   $('rep-asked').textContent = String(agg.asked);
   $('rep-acc').textContent = agg.asked ? Math.round((totalFull() / agg.asked) * 100) + '%' : '—';
   $('rep-mastered').textContent = String(agg.mastered);
-  $('rep-wbc').textContent = String(agg.wb);
+  $('rep-learned').textContent = String(learned);
 
   // 近 7 天
   const box = $('chart7');
@@ -614,6 +615,9 @@ function renderReport() {
   $('ach-count').textContent = got + ' / ' + ACH_DEFS.length;
 
   $('rep-wb-n').textContent = agg.wb + ' 个';
+  $('rep-wb-sub').textContent = agg.wb
+    ? '答错过的词都在这里，先过一遍再练'
+    : '还没有错词，练错了会自动收进来';
 
   // 薄弱词：错误权重高于模糊，正确次数抵扣
   const weak = [];
@@ -652,6 +656,7 @@ function renderReport() {
     (S.hist[k].sessions || []).forEach((r) => recs.push(r));
   }
   recs.sort((a, b) => b.at - a.at);
+  $('rep-recent-n').textContent = recs.length ? recs.length + ' 轮' : '';
   const rl = $('rep-recent');
   rl.innerHTML = '';
   if (!recs.length) {
@@ -682,6 +687,79 @@ function totalFull() {
   return n;
 }
 
+/* ================= 错词本：先看，再练 ================= */
+let wbSort = 'wrong';
+
+function renderWb() {
+  const list = $('wb-list');
+  if (!list) return;
+
+  const rows = Object.keys(S.wb)
+    .filter((w) => S.dict.has(w))
+    .map((w) => ({ w: w, it: S.wb[w] || {}, p: S.progress[w] || {} }));
+
+  rows.sort((a, b) => {
+    if (wbSort === 'az') return a.w.localeCompare(b.w);
+    if (wbSort === 'recent') return (b.it.at || 0) - (a.it.at || 0);
+    const wa = a.p.wrong || 0;
+    const wbk = b.p.wrong || 0;
+    if (wbk !== wa) return wbk - wa;
+    return (b.it.at || 0) - (a.it.at || 0);
+  });
+
+  $$('#seg-wb-sort button').forEach((x) => x.classList.toggle('on', x.dataset.v === wbSort));
+  syncSeg($('seg-wb-sort'), true);
+
+  $('wb-total').textContent = rows.length + ' 个';
+  $('wb-sub').textContent = rows.length
+    ? '答错过的词 · 连对 ' + WB_KEEP + ' 次移出'
+    : '答错过的词会自动收进来';
+
+  list.innerHTML = '';
+  if (!rows.length) {
+    const p = document.createElement('p');
+    p.className = 'hint';
+    p.style.padding = '10px 2px';
+    p.textContent = '错词本是空的。练习时答错的词会自动进来，连对 ' + WB_KEEP + ' 次才移出。';
+    list.appendChild(p);
+    $('btn-wb-practice').disabled = true;
+    $('btn-wb-practice').textContent = '还没有错词';
+    return;
+  }
+  $('btn-wb-practice').disabled = false;
+  $('btn-wb-practice').textContent = '开始练习 · ' + rows.length + ' 个词';
+
+  rows.forEach((r) => {
+    const b = document.createElement('button');
+    b.className = 'result-item wb-item';
+
+    const w = document.createElement('span');
+    w.className = 'r-w';
+    w.textContent = r.w;
+
+    const g = document.createElement('span');
+    g.className = 'r-g';
+    g.textContent = glossOf(r.w, 2) || '（暂无释义）';
+
+    const side = document.createElement('span');
+    side.className = 'wb-side';
+    const bad = document.createElement('b');
+    const nWrong = r.p.wrong || 0;
+    bad.textContent = '错 ' + nWrong;
+    if (nWrong >= 3) bad.className = 'hot';
+    const st = document.createElement('i');
+    st.textContent = '连对 ' + (r.it.streak || 0) + '/' + WB_KEEP;
+    side.appendChild(bad);
+    side.appendChild(st);
+
+    b.appendChild(w);
+    b.appendChild(g);
+    b.appendChild(side);
+    b.addEventListener('click', () => openDetail(r.w));
+    list.appendChild(b);
+  });
+}
+
 /* ================= 结算 ================= */
 function renderDone(session, newly) {
   const s = session.stats;
@@ -692,6 +770,7 @@ function renderDone(session, newly) {
     : (acc >= 90 ? '这轮很稳' : acc >= 70 ? '基本掌握了' : '这轮有点吃力');
   $('done-detail').textContent = '共 ' + s.asked + ' 题 · 正确率 ' + acc + '%'
     + (newly && newly.length ? ' · 新成就 ' + newly.length : '');
+  $('btn-back').textContent = session.kind === 'wb' ? '回到错词本' : '回到今天';
 
   const box = $('done-stats');
   box.innerHTML = '';
@@ -1598,4 +1677,5 @@ function renderAll() {
   renderDict();
   renderReport();
   renderMine();
+  if (curPage === 'wb') renderWb();
 }

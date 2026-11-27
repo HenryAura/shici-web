@@ -3,10 +3,11 @@
    ============================================================ */
 
 const TABS = ['today', 'dict', 'report', 'mine'];
-const PUSHED = ['detail', 'import', 'study', 'done', 'wd'];
+const PUSHED = ['detail', 'import', 'study', 'done', 'wd', 'wb'];
 const ALL_PAGES = TABS.concat(PUSHED);
 let curPage = 'today';
 let tabIdx = 0;
+let wbFrom = 'report';   // 错词本是从哪个 tab 点进来的，返回时回那里
 
 /** 把 pager 挪到第 i 页；animate=false 用于手指跟随（此时关掉过渡） */
 function setTabIndex(i, animate) {
@@ -48,6 +49,7 @@ function showPage(name) {
   else if (name === 'dict') renderDict();
   else if (name === 'report') { checkAchievements(); renderReport(); }
   else if (name === 'mine') renderMine();
+  else if (name === 'wb') renderWb();
 }
 
 /* ---------------- 左右滑动切 tab ---------------- */
@@ -258,8 +260,8 @@ function bindToday() {
   });
 
   $('btn-wb').addEventListener('click', () => {
-    const m = S.settings.mode === 'flash' ? 'choice' : S.settings.mode;
-    startSession('wb', m);
+    wbFrom = 'today';
+    showPage('wb');
   });
 
   $('btn-import').addEventListener('click', () => {
@@ -324,6 +326,9 @@ function bindStudy() {
   });
 
   $('btn-back').addEventListener('click', () => {
+    /* 从错词本开始的练习，结算后回错词本：刚移出的词已经不在列表里，
+       直接能看到剩下多少，不用再穿过首页 */
+    if (S.session && S.session.kind === 'wb') { showPage('wb'); return; }
     renderToday();
     showPage('today');
   });
@@ -361,8 +366,25 @@ function bindDict() {
 
 function bindReport() {
   $('rep-wb-entry').addEventListener('click', () => {
+    wbFrom = 'report';
+    showPage('wb');
+  });
+}
+
+/** 错词本：先看词表，再决定练不练 */
+function bindWb() {
+  $('btn-wb-back').addEventListener('click', () => showPage(wbFrom));
+  $('btn-wb-practice').addEventListener('click', () => {
     const m = S.settings.mode === 'flash' ? 'choice' : S.settings.mode;
     startSession('wb', m);
+  });
+  $$('#seg-wb-sort button').forEach((b) => {
+    b.addEventListener('click', () => {
+      wbSort = b.dataset.v;
+      $$('#seg-wb-sort button').forEach((x) => x.classList.toggle('on', x === b));
+      syncSeg($('seg-wb-sort'), true);
+      renderWb();
+    });
   });
 }
 
@@ -690,6 +712,7 @@ async function boot() {
   bindStudy();
   bindDict();
   bindReport();
+  bindWb();
   bindMine();
   bindWd();
   bindImport();
