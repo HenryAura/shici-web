@@ -911,6 +911,14 @@ html[data-theme='light'] .btn-primary { color: #ffffff; }
 .btn-ghost:active { background: var(--fill-2); }
 .btn-ghost.subtle { color: var(--ink-3); border-color: transparent; background: transparent; }
 
+/* 今日目标完成后的加练按钮：副按钮，跟在主按钮下面 */
+#btn-more {
+  display: block;
+  width: fit-content;
+  min-width: 168px;
+  margin: 10px auto 0;
+}
+
 .text-btn { font-size: 13px; color: var(--acc); }
 
 /* ---------------- 词典 ---------------- */

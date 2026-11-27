@@ -17,8 +17,9 @@ let advanceTimer = null;
 function buildSession(kind, mode) {
   const items = [];
   if (kind === 'wb') {
+    /* 错词本不设上限：以前截前 50 个，错词多了永远轮不到后面的词 */
     const words = Object.keys(S.wb).filter((w) => S.dict.has(w));
-    words.slice(0, 50).forEach((w) => items.push({ w: w, tag: 'wb' }));
+    words.forEach((w) => items.push({ w: w, tag: 'wb' }));
   } else {
     const now = Date.now();
     const due = [];

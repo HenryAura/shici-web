@@ -194,6 +194,13 @@ function refreshStartBtn() {
       ? left + ' 个词 · 约 ' + Math.max(1, Math.round(left * 0.25)) + ' 分钟'
       : '';
   }
+  /* 今日目标完成但词库里还有没学的词：给一个「再学一批」的加练入口 */
+  const more = $('btn-more');
+  if (more) {
+    const canMore = left === 0 && freshList(100000).length > 0;
+    more.hidden = !canMore;
+    if (canMore) more.textContent = '再学 ' + EXTRA_NEW + ' 个新词';
+  }
 }
 
 /** 考试倒计时：压缩成两行细条，只保留天数 / 覆盖率 / 今日安排 */
@@ -1107,10 +1114,13 @@ function mergeBackup(data) {
     S.pins = merged;
   }
   if (web.settings && typeof web.settings === 'object') {
-    /* 设置跟随云端，但「默认练习方式」除外：它是每台设备自己的使用习惯，
-       两台设备共用一份备份时，谁最后推送谁的 mode 就被带过来，看起来就是「自己变了」 */
+    /* 设置跟随云端，但「设备级学习口径」除外：默认练习方式、新词范围、词频范围
+       都是每台设备自己的选择。两台设备共用一份备份时，谁最后推送谁的设置就被带过来，
+       表现就是「选了高频，过一会儿自己弹回全部」——这是自动同步合并云端旧设置造成的 */
     const cloud = Object.assign({}, web.settings);
     delete cloud.mode;
+    delete cloud.scope;
+    delete cloud.freqScope;
     S.settings = Object.assign({}, DEFAULT_SETTINGS, S.settings, cloud);
     normalizeSettings();
     applySettings();

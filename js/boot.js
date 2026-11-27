@@ -237,6 +237,13 @@ function bindToday() {
     startSession('today', S.settings.mode);
   });
 
+  /* 今日目标完成后加练：先补今天的额度，再直接进练习 */
+  $('btn-more').addEventListener('click', () => {
+    addNewQuota(EXTRA_NEW);
+    renderToday();
+    startSession('today', S.settings.mode);
+  });
+
   $$('#mode-seg button').forEach((b) => {
     b.addEventListener('click', () => {
       S.settings.mode = b.dataset.mode;
