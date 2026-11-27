@@ -378,6 +378,7 @@ function bindMine() {
     renderNewVal();
     saveStore();
     renderExam();
+    wdSyncDebounced(3000);
   });
 
   $('set-exam').addEventListener('change', () => {
@@ -496,6 +497,9 @@ function bindSeg(id, onChange) {
       syncSeg($(id), true);
       onChange(b.dataset.v);
       saveStore();
+      /* 设置变了就顺手推一次云：设备级设置虽然不采纳云端旧值，
+         但云端要留有最新值，换设备恢复备份时才能把学习计划带过去 */
+      wdSyncDebounced(3000);
       if (id === 'seg-mode') renderModeSeg();
     });
   });

@@ -1113,13 +1113,20 @@ function mergeBackup(data) {
     S.pins = merged;
   }
   if (web.settings && typeof web.settings === 'object') {
-    /* 设置跟随云端，但「设备级学习口径」除外：默认练习方式、新词范围、词频范围
-       都是每台设备自己的选择。两台设备共用一份备份时，谁最后推送谁的设置就被带过来，
-       表现就是「选了高频，过一会儿自己弹回全部」——这是自动同步合并云端旧设置造成的 */
+    /* 设置跟随云端，但「设备级设置」除外。两台设备共用一份备份时，谁最后推送谁的设置
+       就被带过来，表现就是「选了高频过一会儿弹回全部」「每日词量调完又自己变回去」。
+       设备级 = 本机自己的学习口径与显示偏好：默认练习方式、新词范围、词频范围、
+       每日新词量、字号。只有本机是全新安装（还没有任何存档）时，才整份采纳云端设置，
+       这样换设备/重装靠备份恢复时，学习计划仍然能带过来。 */
     const cloud = Object.assign({}, web.settings);
-    delete cloud.mode;
-    delete cloud.scope;
-    delete cloud.freqScope;
+    if (!S.fresh) {
+      delete cloud.mode;
+      delete cloud.scope;
+      delete cloud.freqScope;
+      delete cloud.newPerDay;
+      delete cloud.wordSize;
+    }
+    S.fresh = false;
     S.settings = Object.assign({}, DEFAULT_SETTINGS, S.settings, cloud);
     normalizeSettings();
     applySettings();

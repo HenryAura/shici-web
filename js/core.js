@@ -7,7 +7,7 @@ const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
 const NEW_MIN = 5;    // 每日新词下限
 const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
-const APP_VER = 'v3.5.4';
+const APP_VER = 'v3.5.5';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -39,7 +39,8 @@ const S = {
   settings: Object.assign({}, DEFAULT_SETTINGS),
   nick: '',
   session: null,        // 当前练习会话
-  lastPage: 'today'
+  lastPage: 'today',
+  fresh: false          // 本机没有存档（新装/清过数据）：首次同步可整份接受云端设置
 };
 
 const $ = (id) => document.getElementById(id);
@@ -60,9 +61,11 @@ function loadStore() {
     console.warn('读取进度失败', e);
   }
   if (!d || typeof d !== 'object') {
+    S.fresh = true;                 // 全新本机：同步到云端备份时可以整份采纳
     S.settings = Object.assign({}, DEFAULT_SETTINGS);
     return;
   }
+  S.fresh = false;
   S.progress = d.progress || {};
   S.days = d.days || {};
   S.hist = d.hist || {};
