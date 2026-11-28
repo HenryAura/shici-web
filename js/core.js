@@ -7,7 +7,7 @@ const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
 const NEW_MIN = 5;    // 每日新词下限
 const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
-const APP_VER = 'v3.5.7';
+const APP_VER = 'v3.5.8';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -278,10 +278,13 @@ function daysToExam() {
 }
 
 /** 考试倒排的词量口径：跟随「新词范围」（必背/认知）与「词频范围」，
-    让主页的「剩余 X 词 · 建议每天 Y 词」与实际练习池一致 */
+    让主页的「待学 X 词 · 建议每天 Y 词」与实际练习池一致。
+    待学 = 还没学过的词（progress 里没记录），和 daily 新词池同一口径：
+    学过但没记住的属于复习，不占待学名额，否则答一次只 -0 个，数字看着不动。 */
 function coreStat() {
   let total = 0;
-  let done = 0;
+  let learned = 0;
+  let mastered = 0;
   const rare = S.settings.scope === 'rare';
   for (const w of S.order) {
     const e = S.dict.get(w);
@@ -290,9 +293,15 @@ function coreStat() {
     if (!freqMatch(w)) continue;                // 词频范围生效
     total++;
     const p = S.progress[w];
-    if (p && (p.full || 0) >= 2 && !S.wb[w]) done++;
+    if (p && (p.seen || 0) > 0) learned++;
+    if (p && (p.full || 0) >= 2 && !S.wb[w]) mastered++;
   }
-  return { total: total, done: done, remain: Math.max(0, total - done) };
+  return {
+    total: total,
+    learned: learned,
+    mastered: mastered,
+    remain: Math.max(0, total - learned)
+  };
 }
 
 /** 考试倒排方案；未设日期返回 null */
@@ -305,11 +314,12 @@ function examPlan() {
   return {
     days: days,
     total: cs.total,
-    done: cs.done,
+    done: cs.learned,          // 已学过
+    mastered: cs.mastered,     // 已掌握（答对 ≥2 且不在错词本）
     remain: cs.remain,
     suggest: perDay,
     reachable: perDay <= NEW_MAX,
-    pct: cs.total ? Math.round((cs.done / cs.total) * 100) : 0
+    pct: cs.total ? Math.round((cs.learned / cs.total) * 100) : 0
   };
 }
 

@@ -230,7 +230,7 @@ function refreshStartBtn() {
   }
 }
 
-/** 考试倒计时：压缩成两行细条，只保留天数 / 覆盖率 / 今日安排 */
+/** 考试倒计时：压缩成两行细条，只保留天数 / 已学比例 / 今日安排 */
 function renderExam() {
   const card = $('exam-card');
   if (!card) return;
@@ -239,10 +239,9 @@ function renderExam() {
   card.hidden = false;
 
   const dt = new Date(S.settings.examDate + 'T00:00:00');
-  const wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   $('exam-days').textContent = p.days === 0 ? '今天' : p.days + ' 天';
   $('exam-date-label').textContent =
-    (dt.getMonth() + 1) + '月' + dt.getDate() + '日 · 覆盖 ' + p.pct + '%';
+    (dt.getMonth() + 1) + '月' + dt.getDate() + '日 · 已学 ' + p.pct + '%';
 
   const eff = effectiveNewPerDay();
   const boosted = S.settings.examAuto && eff > S.settings.newPerDay;
@@ -250,14 +249,14 @@ function renderExam() {
   if (p.days === 0) {
     txt = '今天考试 · 全力以赴';
   } else if (p.remain === 0) {
-    txt = '必背词已全部掌握 · 保持手感';
+    txt = '这个范围的新词都学过了 · 靠复习巩固';
   } else if (!p.reachable) {
     // 真实所需已超过每日上限：如实说明，不把建议值悄悄压到上限装作能追上
-    txt = '剩余 ' + p.remain + ' 词 · 需每天 ' + p.suggest + ' 词，已按上限 ' + NEW_MAX + ' 推进';
+    txt = '待学 ' + p.remain + ' 词 · 需每天 ' + p.suggest + ' 词，已按上限 ' + NEW_MAX + ' 推进';
   } else if (boosted) {
-    txt = '今日新词 ' + eff + ' · 剩余 ' + p.remain + ' 词';
+    txt = '今日新词 ' + eff + ' · 待学 ' + p.remain + ' 词';
   } else {
-    txt = '剩余 ' + p.remain + ' 词 · 建议每天 ' + p.suggest + ' 词';
+    txt = '待学 ' + p.remain + ' 词 · 建议每天 ' + p.suggest + ' 词';
   }
   $('exam-plan').textContent = txt;
 }
@@ -871,7 +870,7 @@ function renderMine() {
   } else {
     eh.textContent = '距考试 ' + ep.days + ' 天 · ' + (s.scope === 'rare' ? '认知' : '必背') +
       (s.freqScope === 'hf' ? '高频' : s.freqScope === 'low' ? '低频' : s.freqScope === 'hfm' ? '(高频+常用)' : '') +
-      ' ' + ep.done + '/' + ep.total +
+      ' 已学 ' + ep.done + '/' + ep.total + '，待学 ' + ep.remain +
       (ep.days > 0 ? ' · 每天 ' + ep.suggest + ' 词' : '') +
       (s.examAuto ? '（自动）' : '（未自动）');
   }
