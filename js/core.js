@@ -7,7 +7,7 @@ const STORE = 'shici.v1';
 const WB_KEEP = 3; // 错词本连续答对 3 次移出
 const NEW_MIN = 5;    // 每日新词下限
 const NEW_MAX = 200;  // 每日新词上限（手动可设，倒排加量同样封顶）
-const APP_VER = 'v3.5.6';
+const APP_VER = 'v3.5.7';
 
 const DEFAULT_SETTINGS = {
   theme: 'auto',        // auto | light | dark
@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   scope: 'all',         // all | core | rare
   freqScope: 'all',     // all | hf | hfm | low（按词频徽章过滤新词）
   mode: 'flash',        // flash | choice | spell | listen
+  plan: 'review',       // review 先复习再新词 | new 先学新词再复习 | newonly 今天只学新词
   voice: '',
   rate: 0.9,
   reduceMotion: false,
@@ -126,6 +127,7 @@ function normalizeSettings() {
   if (['all', 'core', 'rare'].indexOf(s.scope) < 0) s.scope = 'all';
   if (['all', 'hf', 'hfm', 'low'].indexOf(s.freqScope) < 0) s.freqScope = 'all';
   if (['flash', 'choice', 'write', 'spell', 'listen'].indexOf(s.mode) < 0) s.mode = 'flash';
+  if (['review', 'new', 'newonly'].indexOf(s.plan) < 0) s.plan = 'review';
   if (typeof s.examDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s.examDate)) s.examDate = '';
   s.examAuto = s.examAuto !== false;
 }

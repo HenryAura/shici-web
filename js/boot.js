@@ -253,6 +253,12 @@ function bindToday() {
     });
   });
 
+  /* 今天先做什么：只影响本次排课的顺序，不动任何进度 */
+  bindSeg('seg-plan', (v) => {
+    S.settings.plan = v;
+    renderToday();
+  });
+
   $('wl-toggle').addEventListener('click', () => {
     if ($('wl-chev').hidden) return;
     wlOpen = !wlOpen;

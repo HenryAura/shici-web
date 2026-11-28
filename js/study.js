@@ -33,8 +33,18 @@ function buildSession(kind, mode) {
       if (p && p.dueAt && p.dueAt <= now && S.dict.has(w)) due.push(w);
     }
     due.sort((a, b) => S.progress[a].dueAt - S.progress[b].dueAt);
-    due.forEach((w) => items.push({ w: w, tag: 'review' }));
-    freshList(newQuotaLeft()).forEach((w) => items.push({ w: w, tag: 'new' }));
+
+    /* 今日顺序可选：默认先清复习再学新词，也可以反过来，
+       或者干脆「今天只学新词」把到期的复习留到下次。
+       到期的词一直留在 progress 里，不会因为跳过而丢 */
+    const plan = S.settings.plan || 'review';
+    const reviewItems = due.map((w) => ({ w: w, tag: 'review' }));
+    const newItems = freshList(newQuotaLeft()).map((w) => ({ w: w, tag: 'new' }));
+    let seq;
+    if (plan === 'newonly') seq = newItems;
+    else if (plan === 'new') seq = newItems.concat(reviewItems);
+    else seq = reviewItems.concat(newItems);
+    seq.forEach((it) => items.push(it));
   }
 
   S.session = {

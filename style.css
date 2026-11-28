@@ -1718,3 +1718,21 @@ body.kb-open #page-study { padding-bottom: calc(var(--act-h) + var(--kb-h)); }
   color: var(--ink-3);
   font-variant-numeric: tabular-nums;
 }
+
+/* ---------------- 首页：今天先做什么 ---------------- */
+.plan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--fill-2);
+}
+.plan-label {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+/* 三档都不长，别让分段控件被拉成整行 */
+.plan-row .seg { flex: 0 0 auto; }

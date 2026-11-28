@@ -17,9 +17,18 @@ function dueWords() {
 function todayStat() {
   const h = S.hist[dayKey()];
   const done = h ? h.asked : 0;
-  const due = dueWords();
+  const plan = S.settings.plan || 'review';
+  /* 「只学新词」：到期的复习不算进今天的待办，也不挡「开始」按钮。
+     词本身不会被清掉，切回先复习/先学新就会重新出现 */
+  const dueAll = dueWords();
+  const due = plan === 'newonly' ? [] : dueAll;
   const fresh = freshList(newQuotaLeft());
-  return { done: done, due: due.length, newLeft: fresh.length, total: done + due.length + fresh.length, dueList: due, freshList: fresh };
+  return {
+    done: done, due: due.length, newLeft: fresh.length,
+    total: done + due.length + fresh.length,
+    dueList: due, freshList: fresh,
+    dueAll: dueAll.length, plan: plan
+  };
 }
 
 let wlOpen = false;
@@ -32,12 +41,20 @@ function renderToday() {
   const num = $('hero-num');
   num.textContent = String(left);
   num.classList.toggle('done', left === 0 && st.total > 0);
+  /* 今天主动留到下次的复习（只学新词模式下才有） */
+  const parked = st.plan === 'newonly' ? st.dueAll : 0;
   $('hero-sub').textContent = st.total === 0
-    ? '今天没有待学的词，休息一下'
+    ? (parked > 0 ? '新词学完了 · ' + parked + ' 个复习留着' : '今天没有待学的词，休息一下')
     : left === 0 ? '今天的词都过完了'
-      : (st.due > 0 && st.newLeft > 0 ? '复习 ' + st.due + ' · 新词 ' + st.newLeft
-        : st.due > 0 ? '到期的复习' : '今天的新词');
+      : (st.due > 0 && st.newLeft > 0
+        ? (st.plan === 'new' ? '新词 ' + st.newLeft + ' · 复习 ' + st.due
+          : '复习 ' + st.due + ' · 新词 ' + st.newLeft)
+        : st.due > 0 ? '到期的复习'
+          : (parked > 0 ? '只学新词 ' + st.newLeft + ' 个 · 复习 ' + parked + ' 个留着' : '今天的新词'));
   $('st-streak').textContent = '连续 ' + streak() + ' 天';
+  const planSeg = $('seg-plan');
+  const planOn = planSeg && planSeg.querySelector('button.on');
+  if (planSeg && (!planOn || planOn.dataset.v !== st.plan)) setSeg('seg-plan', st.plan);
 
   renderExam();
 
@@ -190,9 +207,20 @@ function refreshStartBtn() {
     : (st.done > 0 ? '继续练习' : '开始' + MODE_NAME[S.settings.mode]);
   const note = $('cta-note');
   if (note) {
-    note.textContent = left > 0
-      ? left + ' 个词 · 约 ' + Math.max(1, Math.round(left * 0.25)) + ' 分钟'
-      : '';
+    if (left === 0) {
+      /* 只学新词且今天的新词已经学满，但还有到期的复习：说清楚怎么接着做 */
+      note.textContent = (st.plan === 'newonly' && st.dueAll > 0)
+        ? '还有 ' + st.dueAll + ' 个复习 · 切到「先复习」就能做'
+        : '';
+    } else {
+      const mins = ' · 约 ' + Math.max(1, Math.round(left * 0.25)) + ' 分钟';
+      let tip;
+      if (st.newLeft === 0) tip = '复习 ' + st.due + ' 个';
+      else if (st.due === 0) tip = (st.plan === 'newonly' ? '今天只学新词 ' : '新词 ') + st.newLeft + ' 个';
+      else if (st.plan === 'new') tip = '先学新词 ' + st.newLeft + ' 个，再复习 ' + st.due + ' 个';
+      else tip = '先复习 ' + st.due + ' 个，再学新词 ' + st.newLeft + ' 个';
+      note.textContent = tip + mins;
+    }
   }
   /* 今日目标完成但词库里还有没学的词：给一个「继续学」的加练入口 */
   const more = $('btn-more');
@@ -1204,6 +1232,7 @@ function mergeBackup(data) {
       delete cloud.freqScope;
       delete cloud.newPerDay;
       delete cloud.wordSize;
+      delete cloud.plan;
     }
     S.fresh = false;
     S.settings = Object.assign({}, DEFAULT_SETTINGS, S.settings, cloud);
